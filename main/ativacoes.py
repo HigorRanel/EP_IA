@@ -17,5 +17,9 @@ def lin_part(inpt:float)->float:
 def sigmoid(inpt:float)->float:
     return 1/(1+np.exp(-inpt))
 
+def derivada_sigmoid(inpt:float)->float:
+    # A derivida da sigmoid é matematicamente definida como:
+    return sigmoid(inpt) * (1 - sigmoid(inpt))
+
 def relu(x):
     return np.maximum(0, x)
