@@ -20,7 +20,7 @@ class MLP:
     Pesos camada oculta: W[i][j]: matriz(comprimento_entrada X comprimento_oculta)
     W_ij
 
-    Bias camada oculta: v0[j]: vetor(comprimento_oculta)
+    Bias camada oculta: w0[j]: vetor(comprimento_oculta)
     w_0j
 
     Pesos camada saída: B[j][k]: matriz (comprimento_oculta x comprimento_saida)
@@ -59,14 +59,30 @@ class MLP:
         # Salva os erros por época
         self.erros = []
 
+        #
+        self.y = [] #saída dos neurônios da camada de saída
+
+        self.y_in = [] #entrada dos neurônios de saída
+
+        self.z = [] #saída dos neurônios da camada oculta
+
+        self.z_in =[] #entrada dos neurônios da camada oculta
+
+
         # Salva pesos iniciais
         # TODO: GUARDAR INFOS DOS PESOS INICIAS - utils.py (ESCREVER EM UM TXT)
-        #self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
+        # self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
 
 
 
-    def fit(self):
+    def fit(self, dados, rotulos):
         for epoca in range(self.epocas):
+            for i in range(dados.shape[0]):
+                dado = dados.iloc[i]
+                self.forward(dado)
+                resp = rotulos[i]
+                #erro = np.array(self.y)-np.array(resp)
+                self.backpropagate(dado, resp, self.z_in, self.z, self.y_in, self.y)
             pass
             # TODO: CHECAR SE PESOS EPOCA ANTERIOR != PESOS EPOCA ATUAL E OUTROS TIPOS DE PARADAS
 
@@ -82,8 +98,8 @@ class MLP:
 
         """
 
-        z_in = [0.0] * self.comprimento_oculta
-        z = [0.0] * self.comprimento_oculta
+        self.z_in = [0.0] * self.comprimento_oculta
+        self.z = [0.0] * self.comprimento_oculta
 
         # Camada oculta:
 
@@ -91,24 +107,24 @@ class MLP:
         # respectivo peso e no final soma-se esse valor ao bias do neurôrio j da camada
         # oculta
         for j in range(self.comprimento_oculta):
-            z_in[j] = self.w0[j]
+            self.z_in[j] = self.w0[j]
             for i in range(self.comprimento_entrada):
-                z_in[j] += entrada[i] * self.W[i][j]
+                self.z_in[j] += entrada[i] * self.W[i][j]
             # aplicamos a função de ativação em z_in_j
-            z[j] = self.funcao_de_ativacao(z_in[j])
+            self.z[j] = self.funcao_de_ativacao(self.z_in[j])
 
         # Camada de saída
 
-        y_in = [0.0] * self.comprimento_saida
-        y = [0.0] * self.comprimento_saida
+        self.y_in = [0.0] * self.comprimento_saida
+        self.y = [0.0] * self.comprimento_saida
 
         for k in range(self.comprimento_saida):
             #  y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
-            y_in[k] = self.b0[k]
+            self.y_in[k] = self.b0[k]
             for j in range(self.comprimento_oculta):
-                y_in[j] += z[j] * self.B[j][k]
+                self.y_in[k] += self.z[j] * self.B[j][k]
             # y_k = f(y_in_k)
-            y[k] = self.funcao_de_ativacao(y_in[k])
+            self.y[k] = self.funcao_de_ativacao(self.y_in[k])
 
         # TODO: CRIAR FUNÇÃO DE FOR PARA GENERALIZAR OS FOR ACIMA
 
@@ -143,7 +159,7 @@ class MLP:
 
         for k in range(self.comprimento_saida):
             # deltaMaior = (target_k - y_k)*f'(i_in_k)
-            deltaMaior_k[k] = (t[k] - y[k]) * derivada_sigmoid(y[k])
+            deltaMaior_k[k] = (t[k] - y[k]) * derivada_sigmoid(y_in[k])
 
             # delta b_0k = alpha * deltaMaior_k
             delta_b0j = self.taxa_de_aprendizado * deltaMaior_k[k]
@@ -152,12 +168,71 @@ class MLP:
             for j in range(self.comprimento_oculta):
                 delta_b_jk[k][j] = self.taxa_de_aprendizado * deltaMaior_k[k] * z[j]
 
-        # CONTINUAR ...
+        # informação de erro da camada oculta
+        deltaMaior_in_j = [0.0] * self.comprimento_oculta
+        deltaMaior_j = [0.0] * self.comprimento_oculta
+        delta_W = [[0.0] * self.comprimento_oculta for _ in range(self.comprimento_entrada)]
+        delta_w0 = [0.0] * self.comprimento_oculta
 
-    def print_resultado(self):
-        pass
+        for j in range(self.comprimento_oculta):
+            # deltaMaior_in_j = somatório de k = 1 até m (deltaMaior_k * b_jk)
+            for k in range(self.comprimento_saida):
+                deltaMaior_in_j[j] += deltaMaior_k[k] * self.B[j][k]
 
-    def check_fim_de_epoca(self):
+            # deltaMaior_j = deltaMaior_in_j * f'(z_in_j)
+            deltaMaior_j[j] = deltaMaior_in_j[j] * derivada_sigmoid(z_in[j])
+
+            # delta_w_0j = alpha * deltaMaior_j
+            delta_w0[j] = self.taxa_de_aprendizado * deltaMaior_j[j]
+
+            # delta_ij = alpha * deltaMaior_j * x_i
+            for i in range(self.comprimento_entrada):
+                delta_W[i][j] = self.taxa_de_aprendizado * deltaMaior_j[j] * x[i]
+
+        # atualização de pesos
+        for k in range(self.comprimento_saida):
+            self.b0[k] += delta_b0j
+            for j in range(self.comprimento_oculta):
+                self.B[j][k] += delta_b_jk[j][k]
+
+        for j in range(self.comprimento_oculta):
+            self.w0[j] += delta_w0[j]
+            for i in range(self.comprimento_entrada):
+                self.W[i][j] += delta_W[i][j]
+
+        # erro quadrático: E(0) = 0.5 * sum_k(e_^2)
+        erro = 0.0
+        for k in range(self.comprimento_saida):
+            erro += (t[k] - y[k]) ** 2
+        return 0.5 * erro
+
+
+
+    def print_console(self, dado):
+        if isinstance(dado, dict):
+            for chave, valor in dado.items():
+                print(f"{chave}: {valor}")
+
+        elif isinstance(dado, list):
+            for linha in dado:
+                print(" | ".join(str(item) for item in linha))
+
+        elif isinstance(dado, str):
+            print(dado)
+    
+    def print_arquivo(self, nome_arquivo, dado):
+        with open(nome_arquivo, 'w') as filehandler:
+            if isinstance(dado, dict):
+                for chave, valor in dado.items():
+                    filehandler.write(f"{chave}: {valor}")
+
+            # a primeira linha seria um título para a tabela
+            elif isinstance(dado, list):
+                filehandler.write(dado[0])
+                for linha in dado[1:]:
+                    filehandler.write(" | ".join(str(item) for item in linha))
+
+    def check_limiar_de_erro(self):
         pass
 
     def set_funcao_de_ativacao(self, funcao):
