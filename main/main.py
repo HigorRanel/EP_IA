@@ -22,7 +22,7 @@ def criar_dict(y_col):
 def main():
     x = ler_arquivo_csv('../Entradas/CARACTERES COMPLETO/X.txt')
     y = ler_arquivo_csv('../Entradas/CARACTERES COMPLETO/Y_letra.txt')
-    mlp=MLP(120, 100, 26, 10)
+    mlp=MLP(120, 100, 26, 5)
 
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]
@@ -38,9 +38,11 @@ def main():
 
     treino_percent=int(0.6*x.shape[0])
     teste_percent=int(0.2*x.shape[0])
+
     treino_x=x.iloc[0:treino_percent,:]
     treino_y=valor_esperado_df.iloc[0:treino_percent,:]
     rotulos_treino=rotulos[0:treino_percent]
+
     teste_x=x.iloc[treino_percent:treino_percent+teste_percent, :]
     teste_y=valor_esperado_df.iloc[treino_percent:treino_percent+teste_percent, :]
     rotulos_teste=rotulos[treino_percent:treino_percent+teste_percent]
@@ -48,15 +50,12 @@ def main():
     print(len(rotulos_treino), len(treino_x))
 
     mlp.fit(treino_x, rotulos_treino)
-    # mlp.teste(teste_x, rotulos_teste)
+    mlp.teste(teste_x, rotulos_teste)
 
     # print(treino_x)
     # print(treino_y)
     # print(teste_x)
     # print(teste_y)
-
-
-
 
 if __name__ == '__main__':
     main()

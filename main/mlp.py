@@ -132,7 +132,9 @@ class MLP:
         for i in range(dados.shape[0]):
             print(f'-----------------------------------{i}-----------------------------------')
             self.forward(dados.iloc[i])
-            print(f'Saída:    {self.y}')
+            saida=np.array(self.y)
+            saida=np.round(saida, 2)
+            print(f'Saída:    {saida}')
             resp = rotulos[i]
             erro = np.array(self.y)-np.array(resp)
             print(f'Resposta: {resp}')
@@ -178,7 +180,7 @@ class MLP:
 
             # delta_b_0k = alpha * delta_maior_k * z_j
             for j in range(self.comprimento_oculta):
-                delta_b_jk[k][j] = self.taxa_de_aprendizado * deltaMaior_k[k] * z[j]
+                delta_b_jk[j][k] = self.taxa_de_aprendizado * deltaMaior_k[k] * z[j]
 
         # informação de erro da camada oculta
         deltaMaior_in_j = [0.0] * self.comprimento_oculta
