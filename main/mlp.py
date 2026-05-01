@@ -1,6 +1,6 @@
 import numpy as np
 
-from main.ativacoes import derivada_sigmoid
+from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
 
@@ -127,6 +127,18 @@ class MLP:
             self.y[k] = self.funcao_de_ativacao(self.y_in[k])
 
         # TODO: CRIAR FUNÇÃO DE FOR PARA GENERALIZAR OS FOR ACIMA
+
+    def teste(self, dados, rotulos):
+        for i in range(dados.shape[0]):
+            print(f'-----------------------------------{i}-----------------------------------')
+            self.forward(dados.iloc[i])
+            print(f'Saída:    {self.y}')
+            resp = rotulos[i]
+            erro = np.array(self.y)-np.array(resp)
+            print(f'Resposta: {resp}')
+            print(f'Erro:     {sum(erro)}')
+
+
 
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
