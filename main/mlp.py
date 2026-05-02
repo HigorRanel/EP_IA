@@ -128,19 +128,30 @@ class MLP:
 
         # TODO: CRIAR FUNÇÃO DE FOR PARA GENERALIZAR OS FOR ACIMA
 
-    def teste(self, dados, rotulos):
+    def teste(self, dados, rotulos, letras, valor_esperado):
+        count=0
         for i in range(dados.shape[0]):
             print(f'-----------------------------------{i}-----------------------------------')
             self.forward(dados.iloc[i])
             saida=np.array(self.y)
-            saida=np.round(saida, 2)
+            saida=list(np.round(saida, 2))
+            indice_letra = saida.index(max(saida))
+
+            prev = letras[indice_letra]
+            esp = valor_esperado.iat[i, 0]
+
+            if(prev.casefold() == esp.casefold()):
+                count=count+1
+
+            print(f'Previsto: {prev}')
+            print(f'Resposta: {esp}')
             print(f'Saída:    {saida}')
             resp = rotulos[i]
             erro = np.array(self.y)-np.array(resp)
             print(f'Resposta: {resp}')
             print(f'Erro:     {sum(erro)}')
-
-
+        print(f'-----------------------------------ACURACIA-----------------------------------')
+        print(f'Acurácia= {count}/{dados.shape[0]} = {count/dados.shape[0]}')
 
 
     def backpropagate(self, x, t, z_in, z, y_in, y):

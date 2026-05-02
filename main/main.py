@@ -17,7 +17,7 @@ def criar_dict(y_col):
         lista[indice] = 1
         dict_conversao[i] = lista
 
-    return dict_conversao
+    return ordem_alfabetica, dict_conversao
 
 def main():
     x = ler_arquivo_csv('../Entradas/CARACTERES COMPLETO/X.txt')
@@ -27,7 +27,7 @@ def main():
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]
 
-    dict_conversao = criar_dict(colunas_letras)
+    letras, dict_conversao = criar_dict(colunas_letras)
     
     rotulos = np.array([dict_conversao[letra] for letra in colunas_letras])
 
@@ -50,7 +50,7 @@ def main():
     print(len(rotulos_treino), len(treino_x))
 
     mlp.fit(treino_x, rotulos_treino)
-    mlp.teste(teste_x, rotulos_teste)
+    mlp.teste(teste_x, rotulos_teste, letras, teste_y)
 
     # print(treino_x)
     # print(treino_y)
