@@ -3,6 +3,7 @@ import numpy as np
 from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
+import utils.logger as logger
 
 """
 Nomes e Nº USP:
