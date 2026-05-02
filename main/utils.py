@@ -26,7 +26,6 @@ def gera_matriz_pesos(num_entr:int, num_neur:int) -> Any:
 
 def gera_matriz_bias(num_neur:int) -> Any:
     matriz=np.random.uniform(-1,1, size=(num_neur))
-    print(matriz)
     return matriz
 
 # inicio=gera_matriz_pesos(120, 10)

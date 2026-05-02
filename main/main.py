@@ -47,6 +47,19 @@ def main():
     teste_y=valor_esperado_df.iloc[treino_percent:treino_percent+teste_percent, :]
     rotulos_teste=rotulos[treino_percent:treino_percent+teste_percent]
 
+    # === ALTERAÇÃO PARA DADOS REDUZIDOS ===
+    # qtd_treino = 5  # <--- Mude aqui a quantidade de treino
+    # qtd_teste = 2  # <--- Mude aqui a quantidade de teste
+    #
+    # treino_x = x.iloc[0:qtd_treino, :]
+    # treino_y = valor_esperado_df.iloc[0:qtd_treino, :]
+    # rotulos_treino = rotulos[0:qtd_treino]
+    #
+    # teste_x = x.iloc[qtd_treino: qtd_treino + qtd_teste, :]
+    # teste_y = valor_esperado_df.iloc[qtd_treino: qtd_treino + qtd_teste, :]
+    # rotulos_teste = rotulos[qtd_treino: qtd_treino + qtd_teste]
+    # # =======================================
+
     mlp.fit(treino_x, rotulos_treino)
     mlp.teste(teste_x, rotulos_teste, letras, teste_y)
 
