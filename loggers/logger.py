@@ -24,12 +24,10 @@ class Logger:
             dado = dado.tolist()
 
         if isinstance(dado, list):
-            # Se for uma MATRIZ (lista de listas 2D)
             if len(dado) > 0 and isinstance(dado[0], list):
                 num_linhas = len(dado)
                 num_cols = len(dado[0])
 
-                # Sem cor para o indicador de matriz
                 linhas_formatadas = [f"    [Matriz {num_linhas}x{num_cols}]"]
                 max_linhas_exibicao = 3
 
@@ -43,14 +41,10 @@ class Logger:
 
                 return "\n".join(linhas_formatadas)
 
-            # Se for um VETOR (1D)
             return "    " + str(np.round(np.array(dado, dtype=float), 4).tolist())
 
         return "    " + str(round(dado, 4) if isinstance(dado, float) else dado)
 
-    # ==========================================
-    # INICIALIZAÇÃO E CONTROLE DE FLUXO
-    # ==========================================
     def log_configuracoes_iniciais(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao):
         print(f"{Colors.BOLD}{self.traco_grosso}")
         print(" INICIALIZAÇÃO DA MLP ".center(60, " "))
@@ -70,35 +64,33 @@ class Logger:
         print(f" DADO DE TREINO #{indice_dado}")
         print(f"{self.traco_fino}{Colors.RESET}")
 
-    # ==========================================
-    # FEEDFORWARD
-    # ==========================================
     def log_entrada(self, entrada):
         print(f"\n{Colors.BOLD}{Colors.BLUE}--- [FEEDFORWARD] ---{Colors.RESET}")
         print(f"{Colors.BOLD} ➔ Entrada (x):{Colors.RESET}")
         print(self._formatar(entrada))
 
-    def log_camada_oculta(self, W, z_in, z):
+    def log_camada_oculta(self, W, w0, z_in, z):
         print(f"\n{Colors.BOLD}{Colors.CYAN}[Camada Oculta]{Colors.RESET}")
         print(f"{Colors.BOLD} ➔ Pesos Entrada->Oculta (W):{Colors.RESET}")
         print(self._formatar(W))
+        print(f"{Colors.BOLD} ➔ Bias Ocultos (w0):{Colors.RESET}")
+        print(self._formatar(w0))
         print(f"{Colors.BOLD} ➔ Entrada dos neurônios (z_in):{Colors.RESET}")
         print(self._formatar(z_in))
         print(f"{Colors.BOLD} ➔ Saída dos neurônios (z):{Colors.RESET}")
         print(self._formatar(z))
 
-    def log_camada_saida(self, B, y_in, y):
+    def log_camada_saida(self, B, b0, y_in, y):
         print(f"\n{Colors.BOLD}{Colors.CYAN}[Camada de Saída]{Colors.RESET}")
         print(f"{Colors.BOLD} ➔ Pesos Oculta->Saída (B):{Colors.RESET}")
         print(self._formatar(B))
+        print(f"{Colors.BOLD} ➔ Bias de Saída (b0):{Colors.RESET}")
+        print(self._formatar(b0))
         print(f"{Colors.BOLD} ➔ Entrada dos neurônios (y_in):{Colors.RESET}")
         print(self._formatar(y_in))
         print(f"{Colors.BOLD} ➔ Saída final (y):{Colors.RESET}")
         print(self._formatar(y))
 
-    # ==========================================
-    # BACKPROPAGATION
-    # ==========================================
     def log_backprop_erros(self, y, t, erro):
         print(f"\n{Colors.BOLD}{Colors.BLUE}--- [BACKPROPAGATION] ---{Colors.RESET}")
         print(f"{Colors.BOLD} ➔ Saída Prevista (y):{Colors.RESET}")
@@ -136,21 +128,17 @@ class Logger:
         print(self._formatar(w_0k_new))
         print(f"{Colors.BOLD} ➔ Novos pesos Entrada->Oculta (W_new):{Colors.RESET}")
         print(self._formatar(v_ij_new))
-        print(f"{Colors.BOLD} ➔ Novos bias Ocultos (w0_new):{Colors.RESET}\n")
+        print(f"{Colors.BOLD} ➔ Novos bias Ocultos (w0_new):{Colors.RESET}")
+        print(self._formatar(v_0j_new))
+        print("\n")
 
-    # ==========================================
-    # TESTES
-    # ==========================================
     def log_iteracao_teste(self, indice_dado):
         print(f"\n{Colors.BOLD}{Colors.BLUE}{self.traco_grosso}")
         print(f" TESTANDO DADO #{indice_dado} ".center(60, "-"))
         print(f"{self.traco_grosso}{Colors.RESET}")
 
     def log_resultado_teste(self, previsto, esperado, saida_rede, erro):
-        # Header sem os traços "---"
-        print(f"\n{Colors.CYAN}[RESULTADO DO TESTE]{Colors.RESET}")
-
-        # Cor vermelha/verde para erro/acerto
+        print(f"\n{Colors.BOLD}[RESULTADO DO TESTE]{Colors.RESET}")
         cor_resultado = Colors.GREEN if str(previsto).casefold() == str(esperado).casefold() else Colors.RED
 
         print(f"{Colors.BOLD} ➔ Previsto: {cor_resultado}{previsto}{Colors.RESET}")

@@ -22,7 +22,7 @@ def criar_dict(y_col):
 def main():
     x = ler_arquivo_csv('../Entradas/CARACTERES COMPLETO/X.txt')
     y = ler_arquivo_csv('../Entradas/CARACTERES COMPLETO/Y_letra.txt')
-    mlp=MLP(120, 100, 26, 1)
+    mlp=MLP(120, 100, 26, 10)
 
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]

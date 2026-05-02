@@ -2,3 +2,5 @@
 .ideia/
 .venv/
 .idea/
+Saidas/*
+!Saidas/.gitkeep
