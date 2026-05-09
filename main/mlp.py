@@ -138,36 +138,25 @@ class MLP:
         camada de saída:
         y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
         y_k = f(y_in_k)
-
         """
-
-        self.z_in = [0.0] * self.comprimento_oculta
-        self.z = [0.0] * self.comprimento_oculta
-
+        entrada = np.array(entrada)
         # Camada oculta:
 
-        # Aqui iremos aplicar o z_in_j sendo o somatório de cada entrada multiplicado pelo
-        # respectivo peso e no final soma-se esse valor ao bias do neurôrio j da camada
-        # oculta
-        for j in range(self.comprimento_oculta):
-            self.z_in[j] = self.w0[j]
-            for i in range(self.comprimento_entrada):
-                self.z_in[j] += entrada[i] * self.W[i][j]
-            # aplicamos a função de ativação em z_in_j
-            self.z[j] = self.funcao_de_ativacao(self.z_in[j])
+        # z_in_j = w_0j + somatório de cada entrada multiplicado pelo
+        # respectivo peso somado ao bias do neurônio j da camada oculta
+        self.z_in = self.w0 + self.W.T @ entrada
+
+        # aplicamos a função de ativação em z_in_j
+        funcao_de_ativacao_vec = np.vectorize(self.funcao_de_ativacao)
+        self.z = funcao_de_ativacao_vec(self.z_in)
 
         # Camada de saída
 
-        self.y_in = [0.0] * self.comprimento_saida
-        self.y = [0.0] * self.comprimento_saida
+        # y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
+        self.y_in = self.b0 + self.B.T @ self.z
 
-        for k in range(self.comprimento_saida):
-            #  y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
-            self.y_in[k] = self.b0[k]
-            for j in range(self.comprimento_oculta):
-                self.y_in[k] += self.z[j] * self.B[j][k]
-            # y_k = f(y_in_k)
-            self.y[k] = self.funcao_de_ativacao(self.y_in[k])
+        # y_k = f(y_in_k)
+        self.y = funcao_de_ativacao_vec(self.y_in)
 
         self.logger.log_entrada(list(entrada))
         self.logger.log_camada_oculta(self.W, self.w0, self.z_in, self.z)
@@ -210,79 +199,42 @@ class MLP:
         return resultados
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
-        """
+        # converte entradas para arrays NumPy
+        x = np.array(x)  # (n_entrada,)
+        t = np.array(t)  # (n_saida,)
+        z = np.array(z)  # (n_oculta,)
+        z_in = np.array(z_in)  # (n_oculta,)
+        y = np.array(y)  # (n_saida,)
+        y_in = np.array(y_in)  # (n_saida,)
 
-            informação de erro da camada de saída:
-            deltaMaior_k = (target_k - y_k) * f'(y_in_k)
-            delta_b_jk = alpha(taxa de apredizado) * deltaMaior_k * z_j
-            delta_b_0k = alpha * deltaMaior_k
+        taxa = self.taxa_de_aprendizado
 
-            retropropagação para camada oculta:
-            in_j = somatorio de k = 1 até comprimento saida (deltaMaior_k * b_jk )
-            deltaMaior_j = deltaMaior_in_j * f'(z_in_j)
-            delta_w_ij = αlpha * deltaMaior_j * x_i
-            delta_w_0j = αlpha * deltaMaior_j
+        derivada_sigmoid_vec = np.vectorize(derivada_sigmoid)
+        deltaMaior_k = (t - y) * derivada_sigmoid_vec(y_in)  # (n_saida,)
 
-            atualização de pesos:
-            b_jk(new) = b_jk(old) + delta_b_jk
-            w_ij(new) = w_ij(old) + delta_w_ij
+        # delta_b_jk
+        # np.outer produz matriz (n_oculta, n_saida) diretamente
+        delta_b_jk = taxa * np.outer(z, deltaMaior_k)  # (n_oculta, n_saida)
+        delta_b0 = taxa * deltaMaior_k  # (n_saida,)
 
-        """
+        # --- camada oculta --
+        # self.B shape: (n_oculta, n_saida)
+        deltaMaior_in_j = self.B @ deltaMaior_k  # (n_oculta,)
+        deltaMaior_j = deltaMaior_in_j * derivada_sigmoid_vec(z_in)  # (n_oculta,)
 
-        # informação de erro da camada de saída
-        deltaMaior_k = [0.0] * self.comprimento_saida
+        # np.outer produz (n_entrada, n_oculta) diretamente
+        delta_W = taxa * np.outer(x, deltaMaior_j)  # (n_entrada, n_oculta)
+        delta_w0 = taxa * deltaMaior_j  # (n_oculta,)
 
-        # cria matriz para guardar o delta de cada erro (cada linha é representa um neurônio da camada oculta)
-        delta_b_jk = [[0.0] * self.comprimento_saida for _ in range(self.comprimento_oculta)]
-
-        delta_b0j = [0.0] * self.comprimento_saida
-
-        for k in range(self.comprimento_saida):
-            # deltaMaior = (target_k - y_k)*f'(i_in_k)
-            deltaMaior_k[k] = (t[k] - y[k]) * derivada_sigmoid(y_in[k])
-
-            # delta b_0k = alpha * deltaMaior_k
-            delta_b0j = self.taxa_de_aprendizado * deltaMaior_k[k]
-
-            # delta_b_0k = alpha * delta_maior_k * z_j
-            for j in range(self.comprimento_oculta):
-                delta_b_jk[j][k] = self.taxa_de_aprendizado * deltaMaior_k[k] * z[j]
-
-        # informação de erro da camada oculta
-        deltaMaior_in_j = [0.0] * self.comprimento_oculta
-        deltaMaior_j = [0.0] * self.comprimento_oculta
-        delta_W = [[0.0] * self.comprimento_oculta for _ in range(self.comprimento_entrada)]
-        delta_w0 = [0.0] * self.comprimento_oculta
-
-        for j in range(self.comprimento_oculta):
-            # deltaMaior_in_j = somatório de k = 1 até m (deltaMaior_k * b_jk)
-            for k in range(self.comprimento_saida):
-                deltaMaior_in_j[j] += deltaMaior_k[k] * self.B[j][k]
-
-            # deltaMaior_j = deltaMaior_in_j * f'(z_in_j)
-            deltaMaior_j[j] = deltaMaior_in_j[j] * derivada_sigmoid(z_in[j])
-
-            # delta_w_0j = alpha * deltaMaior_j
-            delta_w0[j] = self.taxa_de_aprendizado * deltaMaior_j[j]
-
-            # delta_ij = alpha * deltaMaior_j * x_i
-            for i in range(self.comprimento_entrada):
-                delta_W[i][j] = self.taxa_de_aprendizado * deltaMaior_j[j] * x[i]
+        # --- atualização de pesos ---
+        self.B += delta_b_jk
+        self.b0 += delta_b0
+        self.W += delta_W
+        self.w0 += delta_w0
 
         self.logger.log_backprop_erros(y, t, sum((t[k] - y[k]) for k in range(self.comprimento_saida)))
-        self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0j)
+        self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
-
-        # atualização de pesos
-        for k in range(self.comprimento_saida):
-            self.b0[k] += delta_b0j
-            for j in range(self.comprimento_oculta):
-                self.B[j][k] += delta_b_jk[j][k]
-
-        for j in range(self.comprimento_oculta):
-            self.w0[j] += delta_w0[j]
-            for i in range(self.comprimento_entrada):
-                self.W[i][j] += delta_W[i][j]
 
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
