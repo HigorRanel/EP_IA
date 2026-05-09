@@ -207,6 +207,7 @@ class MLP:
         print(f'Acurácia= {count}/{dados.shape[0]} = {count / dados.shape[0]}')
 
         self.writer.write_saidas_teste(resultados)
+        return resultados
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
         """
@@ -325,47 +326,33 @@ class MLP:
     def set_funcao_de_ativacao(self, funcao):
         self.funcao_de_ativacao = funcao
 
-    def matriz_confusao(self, dados, rotulos, letras, valor_esperado):
+    def matriz_confusao(self, resultados, letras):
         """
         Essa função visa gerar e exibir no console a matriz de confusão após o teste
-        Linhas = classe esperada, Colnas = classe que o modelo previu
         """
 
         n = len(letras)
         matriz = [[0] * n for _ in range(n)]
 
-        for i in range(dados.shape[0]):
-            self.forward(dados.iloc[i])
-            saida = list(np.round(np.array(self.y), 2))
-            indice_previsto = saida.index(max(saida))
-            # Indica-me a posição -> (Linha i, Coluna 0)
-            rotulo_esperado = valor_esperado.iat[i,0]
-            indice_real = letras.index(rotulo_esperado)
+        for res in resultados:
+            indice_real = letras.index(res['esperado'])
+            indice_previsto = letras.index(res['previsto'])
             matriz[indice_real][indice_previsto] += 1
 
-        # Imprimindo no console para maior visualização
+        # Impressão no console
         largura_da_coluna = 4
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("MATRIZ DE CONFUSÃO".center(60))
-        print("="*60)
+        print("=" * 60)
 
-        cabecalho = "    "
-        for letra in letras:
-            cabecalho += letra.center(largura_da_coluna)
-
+        cabecalho = "    " + "".join(l.center(largura_da_coluna) for l in letras)
         print(cabecalho)
         print("-" * (largura_da_coluna * n + 5))
 
         for i in range(n):
-            linha = letras[i] + " | "
-
-            for j in range(n):
-                linha += str(matriz[i][j]).center(largura_da_coluna)
-
+            linha = letras[i] + " | " + "".join(str(matriz[i][j]).center(largura_da_coluna) for j in range(n))
             print(linha)
 
         print("-" * 60)
-
         self.writer.write_matriz_confusao(matriz, letras)
-
         return matriz

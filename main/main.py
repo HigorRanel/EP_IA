@@ -111,10 +111,10 @@ def main():
     print(f"Treino: {len(treino_x)} amostras | Teste: {len(teste_x)} amostras")
 
     mlp.fit(treino_x, rotulos_treino, limiar_erro=0.01)
-    mlp.teste(teste_x, rotulos_teste, letras, teste_y)
+    resultados = mlp.teste(teste_x, rotulos_teste, letras, teste_y)
 
     # Gera e exibe a matriz de confusão
-    mlp.matriz_confusao(teste_x, rotulos_teste, letras, teste_y)
+    mlp.matriz_confusao(resultados, letras)
 
     # print(treino_x)
     # print(treino_y)
