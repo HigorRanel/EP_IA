@@ -30,16 +30,19 @@ class Writer:
             return str(np.round(np.array(dado, dtype=float), 6).tolist())
         return str(round(dado, 6) if isinstance(dado, float) else dado)
 
+
     # ==========================================
     # ARQUIVO 1: HIPERPARÂMETROS
     # ==========================================
-    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao):
+    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao, epocas, limiar_erro):
         caminho = self._obter_caminho("1_hiperparametros.txt")
         with open(caminho, 'w', encoding='utf-8') as f:
             f.write("=== HIPERPARAMETROS DA REDE ===\n")
             f.write(f"Arquitetura:         {n_entradas} (Entrada) -> {n_ocultas} (Oculta) -> {n_saidas} (Saída)\n")
             f.write(f"Taxa de Aprendizado: {taxa_aprendizado}\n")
             f.write(f"Função de Ativação:  {ativacao}\n")
+            f.write(f"Épocas:              {epocas}\n")
+            f.write(f"Limiar de Erro:      {limiar_erro if limiar_erro is not None else 'inativo'}\n")
 
     # ==========================================
     # ARQUIVOS 2 E 3: PESOS INICIAIS E FINAIS
@@ -59,13 +62,20 @@ class Writer:
     # ==========================================
     # ARQUIVO 4: ERROS DO TREINAMENTO
     # ==========================================
-    def write_erros(self, erros_por_epoca):
-        caminho = self._obter_caminho("4_erros_treinamento.csv")
-        with open(caminho, 'w', newline='', encoding='utf-8') as f:
+    def write_erros(self, erros_por_epoca, erros_por_iteracao):
+        caminho_epoca = self._obter_caminho("4_erros_treinamento_epoca.csv")
+        with open(caminho_epoca, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Epoca", "Erro_Medio_da_Epoca"])
             for epoca, erro in enumerate(erros_por_epoca):
                 writer.writerow([epoca + 1, erro])
+
+        caminho_iter = self._obter_caminho("4_erros_treinamento_iteracao.csv")
+        with open(caminho_iter, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Epoca", "Iteracao", "Erro_Quadratico"])
+            for entrada in erros_por_iteracao:
+                writer.writerow([entrada['epoca'], entrada['iteracao'], entrada['erro']])
 
     # ==========================================
     # ARQUIVO 5: SAÍDAS DO TESTE
@@ -84,3 +94,15 @@ class Writer:
                     res['erro'],
                     self._formatar_completo(res['saida'])
                 ])
+
+    # ==========================================
+    # ARQUIVO 6: MATRIZ DE CONFUSÃO
+    # ==========================================
+    def write_matriz_confusao(self, matriz, letras):
+        caminho = self._obter_caminho("6_matriz_confusao.csv")
+        with open(caminho, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            # Construção do cabeçalho
+            writer.writerow([""] + letras)
+            for i, letra in enumerate(letras):
+                writer.writerow([letra] + matriz[i])

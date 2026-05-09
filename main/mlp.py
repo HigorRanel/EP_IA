@@ -1,4 +1,8 @@
 import numpy as np
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ativacoes import derivada_sigmoid
 from utils import *
@@ -34,7 +38,8 @@ class MLP:
     """
 
     def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int, epocas: int,
-                 funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8):
+                 funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8,
+                 limiar_erro: float = 0.01):
 
         # Inicializando os hiperparâmetros do modelo
         self.comprimento_entrada = comprimento_entrada
@@ -43,6 +48,7 @@ class MLP:
         self.epocas = epocas
         self.funcao_de_ativacao = funcao_de_ativacao
         self.taxa_de_aprendizado = taxa_de_aprendizado
+        self.limiar_erro = limiar_erro
 
         # Inicializando as estruturas de dados dos pesos
 
@@ -81,15 +87,15 @@ class MLP:
         )
         self.writer.write_hiperparametros(
             comprimento_entrada, comprimento_oculta, comprimento_saida,
-            taxa_de_aprendizado, funcao_de_ativacao.__name__
+            taxa_de_aprendizado, funcao_de_ativacao.__name__,
+            epocas, limiar_erro
         )
 
-        # Salva pesos iniciais
-        # TODO: GUARDAR INFOS DOS PESOS INICIAS - utils.py (ESCREVER EM UM TXT)
+        self.erros_iteracao = []  # lista de {epoca, iteracao, erro}
         # self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="iniciais")
 
-    def fit(self, dados, rotulos):
+    def fit(self, dados, rotulos, limiar_erro=0.01):
         for epoca in range(self.epocas):
             self.logger.log_inicio_epoca(epoca, self.epocas)
             erros_epoca = []
@@ -101,14 +107,27 @@ class MLP:
                 # erro = np.array(self.y)-np.array(resp)
                 erro = self.backpropagate(dado, resp, self.z_in, self.z, self.y_in, self.y)
                 erros_epoca.append(erro)
+                self.erros_iteracao.append({
+                    'epoca': epoca+1,
+                    'iteracao': i+1,
+                    'erro': erro
+                })
+
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
-            pass
-            # TODO: CHECAR SE PESOS EPOCA ANTERIOR != PESOS EPOCA ATUAL E OUTROS TIPOS DE PARADAS
+            print(f"Erro médio da época: {epoca + 1}: {round(erro_medio, 6)}")
+
+            # Check do critério de parada
+            if limiar_erro is not None and self.check_limiar_de_erro(erro_medio, limiar_erro):
+                print(f"\n Parada identificada antecipada na época: {epoca+1}: erro {round(erro_medio, 6)}"
+                      f"<= limiar: {limiar_erro}")
+                break
+
+
 
         # Salva pesos finais e erros ao fim do treinamento
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="finais")
-        self.writer.write_erros(self.erros)
+        self.writer.write_erros(self.erros, self.erros_iteracao)
 
     def forward(self, entrada):
         """
@@ -150,8 +169,6 @@ class MLP:
             # y_k = f(y_in_k)
             self.y[k] = self.funcao_de_ativacao(self.y_in[k])
 
-        # TODO: CRIAR FUNÇÃO DE FOR PARA GENERALIZAR OS FOR ACIMA
-
         self.logger.log_entrada(list(entrada))
         self.logger.log_camada_oculta(self.W, self.w0, self.z_in, self.z)
         self.logger.log_camada_saida(self.B, self.b0, self.y_in, self.y)
@@ -169,6 +186,7 @@ class MLP:
             prev = letras[indice_letra]
             esp = valor_esperado.iat[i, 0]
 
+            # Casefold normaliza String
             if (prev.casefold() == esp.casefold()):
                 count = count + 1
 
@@ -297,8 +315,57 @@ class MLP:
                 for linha in dado[1:]:
                     filehandler.write(" | ".join(str(item) for item in linha))
 
-    def check_limiar_de_erro(self):
-        pass
+    def check_limiar_de_erro(self, erro_medio, limiar):
+        """
+        Essa função visa se o erro médio da época atingiu o limiar mínimo aceitável
+        Retorna True se o treinamento deve parar
+        """
+        return erro_medio <= limiar
 
     def set_funcao_de_ativacao(self, funcao):
         self.funcao_de_ativacao = funcao
+
+    def matriz_confusao(self, dados, rotulos, letras, valor_esperado):
+        """
+        Essa função visa gerar e exibir no console a matriz de confusão após o teste
+        Linhas = classe esperada, Colnas = classe que o modelo previu
+        """
+
+        n = len(letras)
+        matriz = [[0] * n for _ in range(n)]
+
+        for i in range(dados.shape[0]):
+            self.forward(dados.iloc[i])
+            saida = list(np.round(np.array(self.y), 2))
+            indice_previsto = saida.index(max(saida))
+            # Indica-me a posição -> (Linha i, Coluna 0)
+            rotulo_esperado = valor_esperado.iat[i,0]
+            indice_real = letras.index(rotulo_esperado)
+            matriz[indice_real][indice_previsto] += 1
+
+        # Imprimindo no console para maior visualização
+        largura_da_coluna = 4
+        print("\n" + "="*60)
+        print("MATRIZ DE CONFUSÃO".center(60))
+        print("="*60)
+
+        cabecalho = "    "
+        for letra in letras:
+            cabecalho += letra.center(largura_da_coluna)
+
+        print(cabecalho)
+        print("-" * (largura_da_coluna * n + 5))
+
+        for i in range(n):
+            linha = letras[i] + " | "
+
+            for j in range(n):
+                linha += str(matriz[i][j]).center(largura_da_coluna)
+
+            print(linha)
+
+        print("-" * 60)
+
+        self.writer.write_matriz_confusao(matriz, letras)
+
+        return matriz
