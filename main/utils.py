@@ -1,22 +1,20 @@
+"""
+Nomes e Nº USP:
+1. Bruno Hideo Ioneda - NUSP: 15573619
+2. Guilherme Samuel Lemos Segura - NUSP: 15575611
+3. Higor Ranel Viani Lopes - NUSP: 15552946
+4. João de Melo Fantini - NUSP: 15462550
+5. Luiz Vicente Neto - NUSP: 14593054
+"""
+
 import pandas as pd
 import numpy as np
 from typing import Any
-
-#MLP com UMA camada escondida
-#Só é obrigatório usar o caracteres completo. Os outros são para teste
-#Quantos neurônios na camada intermediária? Ninguém sabe ao certo. É um problema de otimização
 
 #Caracteres Completo
 def ler_arquivo_csv(path_arquivo) -> Any:
     df = pd.read_csv(path_arquivo, header=None)
     return df
-
-#Para construir a rede neural de vardade, vale muito a pena usar orientação a objetos. Como eu não
-#fazer isso, eu vou só criar algumas estruturas como funções e dps vcs fazem oq vcs quiserem
-#Vou construir matrizes para os pesos. Tem que transformar a linha em um vetor "deitado"
-
-# vd_exemplo=np.array(X.iloc[0][0:120]).reshape(1, -1)
-# print(vd_exemplo)
 
 #Cada coluna n contém o conjunto de pesos que sai de todos os neurônios de entrada e vão para o
 #neurônio n

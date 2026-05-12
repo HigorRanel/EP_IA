@@ -1,3 +1,12 @@
+"""
+Nomes e Nº USP:
+1. Bruno Hideo Ioneda - NUSP: 15573619
+2. Guilherme Samuel Lemos Segura - NUSP: 15575611
+3. Higor Ranel Viani Lopes - NUSP: 15552946
+4. João de Melo Fantini - NUSP: 15462550
+5. Luiz Vicente Neto - NUSP: 14593054
+"""
+
 import numpy as np
 import sys
 import os
@@ -9,11 +18,6 @@ from utils import *
 import ativacoes as atv
 from loggers.logger import Logger
 from loggers.writer import Writer
-
-"""
-Nomes e Nº USP:
-
-"""
 
 
 class MLP:
@@ -196,46 +200,83 @@ class MLP:
         print(f'Acurácia= {count}/{dados.shape[0]} = {count / dados.shape[0]}')
 
         self.writer.write_saidas_teste(resultados)
+        self.writer.write_acuracia(count, dados.shape[0])
         return resultados
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
-        # converte entradas para arrays NumPy
-        x = np.array(x)  # (n_entrada,)
-        t = np.array(t)  # (n_saida,)
-        z = np.array(z)  # (n_oculta,)
-        z_in = np.array(z_in)  # (n_oculta,)
-        y = np.array(y)  # (n_saida,)
-        y_in = np.array(y_in)  # (n_saida,)
+        """
+        CAMADA DE SAÍDA - Cálculo do termo de erro:
+            δ_k = (t_k - y_k) * f'(y_in_k)
+
+        CAMADA DE SAÍDA - Cálculo das correções de peso:
+            Δb_jk = α * δ_k * z_j
+            Δb_0k = α * δ_k
+
+        CAMADA OCULTA - Retropropagação do erro:
+            δ_in_j = B * δ_k
+            δ_j    = δ_in_j * f'(z_in_j)
+
+        CAMADA OCULTA - Cálculo das correções de peso:
+            ΔW   = α * δ_j * x
+            Δw_0j = α * δ_j
+
+        ATUALIZAÇÃO DOS PESOS:
+            b_jk(new) = b_jk(old) + Δb_jk
+            w_ij(new) = w_ij(old) + Δw_ij
+        """
+
+        # Converte entradas para arrays NumPy para operações matriciais
+        x = np.array(x)
+        t = np.array(t)
+        z = np.array(z)
+        z_in = np.array(z_in)
+        y = np.array(y)
+        y_in = np.array(y_in)
 
         taxa = self.taxa_de_aprendizado
 
+        # Vetoriza a derivada da sigmoid para aplicação elemento a elemento
         derivada_sigmoid_vec = np.vectorize(derivada_sigmoid)
-        deltaMaior_k = (t - y) * derivada_sigmoid_vec(y_in)  # (n_saida,)
 
-        # delta_b_jk
-        # np.outer produz matriz (n_oculta, n_saida) diretamente
-        delta_b_jk = taxa * np.outer(z, deltaMaior_k)  # (n_oculta, n_saida)
-        delta_b0 = taxa * deltaMaior_k  # (n_saida,)
+        # δ_k = (t_k - y_k) * f'(y_in_k)
+        deltaMaior_k = (t - y) * derivada_sigmoid_vec(y_in)
 
-        # --- camada oculta --
-        # self.B shape: (n_oculta, n_saida)
-        deltaMaior_in_j = self.B @ deltaMaior_k  # (n_oculta,)
-        deltaMaior_j = deltaMaior_in_j * derivada_sigmoid_vec(z_in)  # (n_oculta,)
+        # Δb_jk = α * δ_k * z_j
+        delta_b_jk = taxa * np.outer(z, deltaMaior_k)
 
-        # np.outer produz (n_entrada, n_oculta) diretamente
-        delta_W = taxa * np.outer(x, deltaMaior_j)  # (n_entrada, n_oculta)
-        delta_w0 = taxa * deltaMaior_j  # (n_oculta,)
+        # Δb_0k = α * δ_k
+        # Correção dos bias da camada de saída: shape (n_saida,)
+        delta_b0 = taxa * deltaMaior_k
 
-        # --- atualização de pesos ---
+        # δ_in_j = B * δ_k
+        deltaMaior_in_j = self.B @ deltaMaior_k
+
+        # δ_j = δ_in_j * f'(z_in_j)
+        deltaMaior_j = deltaMaior_in_j * derivada_sigmoid_vec(z_in)
+
+        # ΔW = α * δ_j * x
+        delta_W = taxa * np.outer(x, deltaMaior_j)
+
+        # Δw_0j = α * δ_j
+        delta_w0 = taxa * deltaMaior_j
+
+        # Atualização dos pesos
+
+        # b_jk(new) = b_jk(old) + Δb_jk
         self.B += delta_b_jk
+
+        # b_0k(new) = b_0k(old) + Δb_0k
         self.b0 += delta_b0
+
+        # w_ij(new) = w_ij(old) + ΔW
         self.W += delta_W
+
+        # w_0j(new) = w_0j(old) + Δw_0j
         self.w0 += delta_w0
 
         self.logger.log_backprop_erros(y, t, sum((t[k] - y[k]) for k in range(self.comprimento_saida)))
         self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
-
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
         # erro quadrático: E(0) = 0.5 * sum_k(e_^2)

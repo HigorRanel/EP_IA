@@ -1,3 +1,12 @@
+"""
+Nomes e Nº USP:
+1. Bruno Hideo Ioneda - NUSP: 15573619
+2. Guilherme Samuel Lemos Segura - NUSP: 15575611
+3. Higor Ranel Viani Lopes - NUSP: 15552946
+4. João de Melo Fantini - NUSP: 15462550
+5. Luiz Vicente Neto - NUSP: 14593054
+"""
+
 import numpy as np
 import os
 import csv
@@ -106,3 +115,13 @@ class Writer:
             writer.writerow([""] + letras)
             for i, letra in enumerate(letras):
                 writer.writerow([letra] + matriz[i])
+
+    # ==========================================
+    # ARQUIVO 7: ACURÁCIA
+    # ==========================================
+    def write_acuracia(self, count, total):
+        caminho = self._obter_caminho("7_acuracia.txt")
+        with open(caminho, 'w', encoding='utf-8') as f:
+            f.write("=== ACURÁCIA DO TESTE ===\n")
+            f.write(f"Acertos:  {count}/{total}\n")
+            f.write(f"Acurácia: {round(count / total * 100, 2)}%\n")

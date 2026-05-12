@@ -1,3 +1,12 @@
+"""
+Nomes e Nº USP:
+1. Bruno Hideo Ioneda - NUSP: 15573619
+2. Guilherme Samuel Lemos Segura - NUSP: 15575611
+3. Higor Ranel Viani Lopes - NUSP: 15552946
+4. João de Melo Fantini - NUSP: 15462550
+5. Luiz Vicente Neto - NUSP: 14593054
+"""
+
 import numpy as np
 from utils import ler_arquivo_csv
 from mlp import *
@@ -24,7 +33,12 @@ def criar_dict(y_col):
 
     return ordem_alfabetica, dict_conversao
 
-def div_teste_treino (x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, seed=42):
+def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, seed=42):
+    """
+    Holdout Estratificado: divide o conjunto de dados em treino e teste
+    garantindo que a proporção de cada classe (letra) seja mantida nos dois conjuntos.
+    """
+
     # A semente é necessária para garantir a reprodutibilidade do experimento aleatório de seleção
     # dos dados que vão para teste ou para treino
     np.random.seed(seed)
@@ -56,6 +70,14 @@ def div_teste_treino (x, valor_esperado_df, rotulos, colunas_letras, test_size=0
     teste_y = valor_esperado_df.iloc[indices_teste, :]
     rotulos_teste = rotulos[indices_teste]
 
+    print(f"\n=== DIVISÃO HOLDOUT ESTRATIFICADO (test_size={test_size}, seed={seed}) ===")
+    print(f"Total:  {len(x)} amostras")
+    print(f"Treino: {len(treino_x)} amostras ({round(len(treino_x)/len(x)*100, 1)}%)")
+    print(f"Teste:  {len(teste_x)} amostras  ({round(len(teste_x)/len(x)*100, 1)}%)")
+    print(f"Amostras por classe no treino: {len(treino_x) // len(colunas_letras.unique())}")
+    print(f"Amostras por classe no teste:  {len(teste_x) // len(colunas_letras.unique())}")
+    print("=" * 55 + "\n")
+
     return treino_x, treino_y, rotulos_treino, teste_x, teste_y, rotulos_teste
 
 def main():
@@ -65,7 +87,8 @@ def main():
 
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
-    mlp=MLP(120, 100, 26, epocas=100, taxa_de_aprendizado=0.7, limiar_erro=0.01)
+    mlp=MLP(120, 100, 26, epocas=100, taxa_de_aprendizado=0.7,
+            limiar_erro=0.01)
 
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]
@@ -82,33 +105,12 @@ def main():
     treino_percent=int(0.6*x.shape[0])
     teste_percent=int(0.2*x.shape[0])
 
-    # treino_x=x.iloc[0:treino_percent,:]
-    # treino_y=valor_esperado_df.iloc[0:treino_percent,:]
-    # rotulos_treino=rotulos[0:treino_percent]
-    #
-    # teste_x=x.iloc[treino_percent:treino_percent+teste_percent, :]
-    # teste_y=valor_esperado_df.iloc[treino_percent:treino_percent+teste_percent, :]
-    # rotulos_teste=rotulos[treino_percent:treino_percent+teste_percent]
 
-    # === ALTERAÇÃO PARA DADOS REDUZIDOS ===
-    # qtd_treino = 5  # <--- Mude aqui a quantidade de treino
-    # qtd_teste = 2  # <--- Mude aqui a quantidade de teste
-    #
-    # treino_x = x.iloc[0:qtd_treino, :]
-    # treino_y = valor_esperado_df.iloc[0:qtd_treino, :]
-    # rotulos_treino = rotulos[0:qtd_treino]
-    #
-    # teste_x = x.iloc[qtd_treino: qtd_treino + qtd_teste, :]
-    # teste_y = valor_esperado_df.iloc[qtd_treino: qtd_treino + qtd_teste, :]
-    # rotulos_teste = rotulos[qtd_treino: qtd_treino + qtd_teste]
-    # # =======================================
-
-    treino_x, treino_y, rotulos_treino, teste_x, teste_y, rotulos_teste = div_teste_treino(x, valor_esperado_df,
-                                                                                         rotulos,
+    treino_x, treino_y, rotulos_treino, teste_x, teste_y, rotulos_teste = holdout_estratificado(x, valor_esperado_df,
+                                                                                           rotulos,
                                                                                            colunas_letras,
                                                                                            test_size=0.3,
                                                                                            seed=42)
-    print(f"Treino: {len(treino_x)} amostras | Teste: {len(teste_x)} amostras")
 
     mlp.fit(treino_x, rotulos_treino, limiar_erro=0.01)
     resultados = mlp.teste(teste_x, rotulos_teste, letras, teste_y)
@@ -116,10 +118,6 @@ def main():
     # Gera e exibe a matriz de confusão
     mlp.matriz_confusao(resultados, letras)
 
-    # print(treino_x)
-    # print(treino_y)
-    # print(teste_x)
-    # print(teste_y)
 
 if __name__ == '__main__':
     main()
