@@ -101,13 +101,23 @@ class MLP:
 
     def fit(self, dados, rotulos, limiar_erro=0.01):
         for epoca in range(self.epocas):
+
+            # O embaralhamento por época é necessário pois o holdout estratificado agrupa as amostras
+            # por classe. Sem isso, a rede veria todas as variações de "A", depois todas de "B", e assim
+            # por diante, de forma que os pesos sejam ajustados repetidamente para uma única letra
+            # por vez, prejudicando o que foi aprendido sobre as letras anteriores. Ao embaralhar,
+            # garantimos que a rede aprenda todas as letras de forma intercalada a cada época.
+            indices = np.random.permutation(dados.shape[0])
+            dados_epoca = dados.iloc[indices].reset_index(drop=True)
+            rotulos_epoca = rotulos[indices]
+
             self.logger.log_inicio_epoca(epoca, self.epocas)
             erros_epoca = []
-            for i in range(dados.shape[0]):
+            for i in range(dados_epoca.shape[0]):
                 self.logger.log_iteracao_dado(i)
-                dado = dados.iloc[i]
+                dado = dados_epoca.iloc[i]
                 self.forward(dado)
-                resp = rotulos[i]
+                resp = rotulos_epoca[i]
                 # erro = np.array(self.y)-np.array(resp)
                 erro = self.backpropagate(dado, resp, self.z_in, self.z, self.y_in, self.y)
                 erros_epoca.append(erro)
@@ -280,9 +290,7 @@ class MLP:
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
         # erro quadrático: E(0) = 0.5 * sum_k(e_^2)
-        erro = 0.0
-        for k in range(self.comprimento_saida):
-            erro += (t[k] - y[k]) ** 2
+        erro = np.sum((t[:self.comprimento_saida] - y[:self.comprimento_saida]) ** 2)
         return 0.5 * erro
 
     def print_console(self, dado):

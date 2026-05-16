@@ -33,7 +33,7 @@ def criar_dict(y_col):
 
     return ordem_alfabetica, dict_conversao
 
-def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, seed=42):
+def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, seed=67):
     """
     Holdout Estratificado: divide o conjunto de dados em treino e teste
     garantindo que a proporção de cada classe (letra) seja mantida nos dois conjuntos.
@@ -87,7 +87,7 @@ def main():
 
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
-    mlp=MLP(120, 100, 26, epocas=100, taxa_de_aprendizado=0.7,
+    mlp=MLP(120, 90, 26, epocas=100, taxa_de_aprendizado=0.7,
             limiar_erro=0.01)
 
     colunas_letras = y[0]
