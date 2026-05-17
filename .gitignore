@@ -1,6 +1,8 @@
 .vscode/
 .ideia/
 .venv/
+.venv2/
+.ven1/
 .idea/
 Saidas/*
 !Saidas/.gitkeep
