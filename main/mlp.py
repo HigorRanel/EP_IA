@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
-from loggers.logger import Logger
-from loggers.writer import Writer
+from logger import Logger
+from writer import Writer
 
 
 class MLP:
@@ -281,8 +281,7 @@ class MLP:
 
         # erro quadrático: E(0) = 0.5 * sum_k(e_^2)
         erro = 0.0
-        for k in range(self.comprimento_saida):
-            erro += (t[k] - y[k]) ** 2
+        erro = np.sum((t[:self.comprimento_saida] - y[:self.comprimento_saida]) ** 2)
         return 0.5 * erro
 
     def print_console(self, dado):
