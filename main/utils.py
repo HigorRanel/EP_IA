@@ -18,9 +18,11 @@ def ler_arquivo_csv(path_arquivo) -> Any:
 
 #Cada coluna n contém o conjunto de pesos que sai de todos os neurônios de entrada e vão para o
 #neurônio n
-def gera_matriz_pesos(num_entr:int, num_neur:int) -> Any:
-    matriz=np.random.uniform(-1,1, size=(num_entr, num_neur))
-    return matriz
+def gera_matriz_pesos(num_entr, num_neur, ativacao='relu'):
+    if ativacao == 'relu':
+        std = np.sqrt(2.0 / num_entr)
+        return np.random.randn(num_entr, num_neur) * std
+    return np.random.uniform(-1, 1, size=(num_entr, num_neur))
 
 def gera_matriz_bias(num_neur:int) -> Any:
     matriz=np.random.uniform(-1,1, size=(num_neur))
