@@ -85,14 +85,24 @@ def main():
 
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
+    # mlp = MLP(
+    #     120,
+    #     90,
+    #     26,
+    #     epocas=100,
+    #     taxa_de_aprendizado=0.7,
+    #     limiar_erro=0.02
+    # )
+
     mlp = MLP(
         120,
         90,
         26,
         epocas=100,
-        taxa_de_aprendizado=0.7,
-        limiar_erro=0.02
+        taxa_de_aprendizado=0.3,
+        limiar_erro=0.0055
     )
+
     # mlp = MLP(
     #     120,
     #     150,
@@ -128,7 +138,7 @@ def main():
     # rotulos_teste = rotulos[-130:]
     #####################################################
 
-    mlp.fit(treino_x, rotulos_treino, limiar_erro=0.02)
+    mlp.fit(treino_x, rotulos_treino)
     resultados = mlp.teste(teste_x, rotulos_teste, letras, teste_y)
 
     # Gera e exibe a matriz de confusão

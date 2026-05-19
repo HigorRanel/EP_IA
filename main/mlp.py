@@ -99,7 +99,7 @@ class MLP:
         # self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="iniciais")
 
-    def fit(self, dados, rotulos, limiar_erro=0.01):
+    def fit(self, dados, rotulos):
         for epoca in range(self.epocas):
 
             # O embaralhamento por época é necessário pois o holdout estratificado agrupa as amostras
@@ -127,14 +127,15 @@ class MLP:
                     'erro': erro
                 })
 
+            # Soma dos erros divididos pela quantidade de épocas
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
             print(f"Erro médio da época: {epoca + 1}: {round(erro_medio, 6)}")
 
             # Check do critério de parada
-            if limiar_erro is not None and self.check_limiar_de_erro(erro_medio, limiar_erro):
+            if self.limiar_erro is not None and self.check_limiar_de_erro(erro_medio, self.limiar_erro):
                 print(f"\n Parada identificada antecipada na época: {epoca+1}: erro {round(erro_medio, 6)}"
-                      f"<= limiar: {limiar_erro}")
+                      f" limiar: {self.limiar_erro}")
                 break
 
 
