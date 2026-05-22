@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
-from loggers.logger import Logger
-from loggers.writer import Writer
+from logger import Logger
+from writer import Writer
 
 
 class MLP:
