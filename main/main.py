@@ -85,32 +85,17 @@ def main():
 
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
-    # mlp = MLP(
-    #     120,
-    #     90,
-    #     26,
-    #     epocas=100,
-    #     taxa_de_aprendizado=0.7,
-    #     limiar_erro=0.02
-    # )
 
     mlp = MLP(
         120,
         90,
         26,
-        epocas=100,
+        epocas=250,
         taxa_de_aprendizado=0.3,
-        limiar_erro=0.0055
+        limiar_erro=0.0039
     )
 
-    # mlp = MLP(
-    #     120,
-    #     150,
-    #     26,
-    #     epocas=200,
-    #     taxa_de_aprendizado=0.5,
-    #     limiar_erro=0.02
-    # )
+
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]
 

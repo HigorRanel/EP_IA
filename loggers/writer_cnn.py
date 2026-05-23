@@ -22,6 +22,10 @@ from writer import Writer
 class WriterCNN(Writer):
     """
     Subclasse de Writer com métodos adicionais voltados para a CNN.
+
+    Os callbacks nativos do Keras (CSVLogger, ModelCheckpoint) escrevem
+    diretamente nos arquivos; os métodos abaixo apenas fornecem os caminhos
+    e fazem o pós-processamento mínimo para manter os formatos.
     """
 
     def __init__(self, diretorio_saida="../Saidas", prefixo="cnn"):
@@ -37,7 +41,7 @@ class WriterCNN(Writer):
     # ==========================================
     # ARQUIVO 1: HIPERPARÂMETROS CNN
     # ==========================================
-    def write_hiperparametros_cnn(self, tarefa: str, modo_dados: str, config: dict):
+    def write_hiperparametros_cnn(self, tarefa, modo_dados, config):
         nome = f"1_hiperparametros_{tarefa}.txt"
         caminho = self._obter_caminho(nome)
         with open(caminho, 'w', encoding='utf-8') as f:
@@ -47,11 +51,24 @@ class WriterCNN(Writer):
                 f.write(f"{chave:<25}{valor}\n")
 
     # ==========================================
+    # CAMINHOS PARA CALLBACKS DO KERAS
+    # ==========================================
+    def caminho_pesos_h5(self, etapa, tarefa):
+        num = "2" if etapa == "iniciais" else "3"
+        return self._obter_caminho(f"{num}_pesos_{etapa}_{tarefa}.weights.h5")
+
+    def caminho_historico_nativo(self, tarefa):
+        return self._obter_caminho(f"4_historico_treinamento_{tarefa}_keras.csv")
+
+    # ==========================================
     # ARQUIVO 2 E 3: PESOS INICIAIS E FINAIS
     # ==========================================
-    def write_pesos_cnn(self, model, etapa: str, tarefa: str):
+    def write_pesos_cnn(self, model, etapa, tarefa):
+        self.write_resumo_pesos_cnn(model, etapa=etapa, tarefa=tarefa)
+        model.save_weights(self.caminho_pesos_h5(etapa=etapa, tarefa=tarefa))
+
+    def write_resumo_pesos_cnn(self, model, etapa, tarefa):
         num = "2" if etapa == "iniciais" else "3"
-        # Resumo textual
         caminho_txt = self._obter_caminho(f"{num}_pesos_{etapa}_{tarefa}.txt")
         with open(caminho_txt, 'w', encoding='utf-8') as f:
             f.write(f"=== PESOS {etapa.upper()} — CNN ({tarefa.upper()}) ===\n\n")
@@ -66,28 +83,33 @@ class WriterCNN(Writer):
                             f"mean={np.mean(p):.6f}  std={np.std(p):.6f}\n")
                 f.write("\n")
 
-        # Pesos completos em H5
-        caminho_h5 = self._obter_caminho(f"{num}_pesos_{etapa}_{tarefa}.weights.h5")
-        model.save_weights(caminho_h5)
-
     # ==========================================
     # ARQUIVO 4: HISTÓRICO DE ERRO POR ÉPOCA
     # ==========================================
-    def write_historico_cnn(self, history, tarefa: str):
-        caminho = self._obter_caminho(f"4_historico_treinamento_{tarefa}.csv")
-        with open(caminho, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            colunas = list(history.history.keys())
-            writer.writerow(["Epoca"] + colunas)
-            n_epocas = len(history.history[colunas[0]])
-            for epoca in range(n_epocas):
-                linha = [epoca + 1] + [history.history[col][epoca] for col in colunas]
-                writer.writerow(linha)
+    def finalizar_historico_cnn(self, caminho_nativo, tarefa):
+        caminho_final = self._obter_caminho(f"4_historico_treinamento_{tarefa}.csv")
+
+        with open(caminho_nativo, 'r', encoding='utf-8') as f:
+            linhas = list(csv.reader(f))
+
+        cabecalho, dados = linhas[0], linhas[1:]
+        cabecalho = ["Epoca"] + cabecalho[1:]
+
+        with open(caminho_final, 'w', newline='', encoding='utf-8') as f:
+            w = csv.writer(f)
+            w.writerow(cabecalho)
+            for linha in dados:
+                if not linha:          # ignora linhas em branco do CSVLogger
+                    continue
+                w.writerow([int(linha[0]) + 1] + linha[1:])
+
+        if os.path.exists(caminho_nativo):
+            os.remove(caminho_nativo)
 
     # ==========================================
     # ARQUIVO 5: SAÍDAS DO TESTE
     # ==========================================
-    def write_saidas_teste_cnn(self, y_true, y_pred, y_pred_proba, nomes_classes: list, tarefa: str):
+    def write_saidas_teste_cnn(self, y_true, y_pred, y_pred_proba, nomes_classes, tarefa):
         caminho = self._obter_caminho(f"5_saidas_teste_{tarefa}.csv")
         with open(caminho, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -105,7 +127,7 @@ class WriterCNN(Writer):
     # ==========================================
     # ARQUIVO 6: MATRIZ DE CONFUSÃO
     # ==========================================
-    def write_matriz_confusao_cnn(self, matriz, nomes_classes: list, tarefa: str):
+    def write_matriz_confusao_cnn(self, matriz, nomes_classes, tarefa):
         caminho = self._obter_caminho(f"6_matriz_confusao_{tarefa}.csv")
         with open(caminho, 'w', newline='', encoding='utf-8') as f:
             w = _csv.writer(f)
@@ -116,7 +138,7 @@ class WriterCNN(Writer):
     # ==========================================
     # ARQUIVO 7: ACURÁCIA
     # ==========================================
-    def write_acuracia_cnn(self, count: int, total: int, tarefa: str):
+    def write_acuracia_cnn(self, count, total, tarefa):
         caminho = self._obter_caminho(f"7_acuracia_{tarefa}.txt")
         with open(caminho, 'w', encoding='utf-8') as f:
             f.write(f"=== ACURÁCIA DO TESTE ({tarefa.upper()}) ===\n")

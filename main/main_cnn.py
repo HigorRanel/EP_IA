@@ -10,15 +10,12 @@ Executa quatro experimentos em sequência:
   1. Classificação multiclasse com as imagens originais (10 classes, imagens 28x28)
   2. Classificação binária com as imagens originais     (Camiseta vs Calça)
   3. Classificação multiclasse com HOG+LBP              (10 classes, vetores de descritores)
-  4. Classificação binária com HOG+LBP                  (Camiseta vs Calça)
+  4. Classificação binária com HOG+LBP   (Camiseta vs Calça)
 
 Divisão dos dados:
   - Treino:   60.000 amostras
   - Validação: 20% do treino via validation_split
   - Teste:    10.000 amostras
-
-O Fashion MNIST já vem pré-dividido em 60k/10k pelo Keras, o que é a
-divisão mais comum usada na literatura.
 """
 
 import os
@@ -111,14 +108,13 @@ def executar_experimento(tarefa: str, modo_dados: str, X_treino, y_treino, X_tes
     """
     Executa um experimento completo: build -> fit -> teste.
 
-    Args:
-        tarefa:    'multiclasse' ou 'binaria'.
-        modo_dados: 'bruto' ou 'hog_lbp'.
-        X_treino, y_treino: dados de treinamento.
-        X_teste,  y_teste:  dados de teste.
+    tarefa:    'multiclasse' ou 'binaria'.
+    modo_dados: 'bruto' ou 'hog_lbp'.
+    X_treino, y_treino: dados de treinamento.
+    X_teste,  y_teste:  dados de teste.
     """
     print(f"\n{'#'*60}")
-    print(f"  EXPERIMENTO: {tarefa.upper()} | {modo_dados.upper()}")
+    print(f"EXPERIMENTO: {tarefa.upper()} | {modo_dados.upper()}")
     print(f"{'#'*60}")
 
     cnn = CNN(
@@ -142,14 +138,13 @@ def executar_experimento(tarefa: str, modo_dados: str, X_treino, y_treino, X_tes
 
     # Treina com 20% do treino usado como validação (para EarlyStopping)
     cnn.fit(X_treino, y_treino, X_val=None, y_val=None)
-    # aqui usamos o split padrão do fit para simplicidade.
-    # Para passar explicitamente, basta dividir X_treino antes e passar X_val/y_val.
+    # aqui usamos o split padrão do fit para simplicidade
 
     resultados = cnn.teste(X_teste, y_teste)
 
-    print(f"\n  ✓ Acurácia final ({tarefa}, {modo_dados}): "
+    print(f"\n Acurácia final ({tarefa}, {modo_dados}): "
           f"{round(resultados['acuracia']*100, 2)}%")
-    print(f"  ✓ Artefatos salvos em: {cnn.writer.pasta_atual}\n")
+    print(f"Arquivos salvos em: {cnn.writer.pasta_atual}\n")
 
 
 def main():
@@ -157,7 +152,7 @@ def main():
     tf.random.set_seed(42)
     np.random.seed(42)
 
-    # --- Carregamento ---
+    # Carregamento
     X_treino_raw, y_treino, X_teste_raw, y_teste = carregar_dados()
 
     # ============================================================

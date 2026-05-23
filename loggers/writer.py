@@ -39,7 +39,6 @@ class Writer:
             return str(np.round(np.array(dado, dtype=float), 6).tolist())
         return str(round(dado, 6) if isinstance(dado, float) else dado)
 
-
     # ==========================================
     # ARQUIVO 1: HIPERPARÂMETROS
     # ==========================================

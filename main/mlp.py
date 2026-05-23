@@ -43,7 +43,7 @@ class MLP:
 
     def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int, epocas: int,
                  funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8,
-                 limiar_erro: float = 0.01):
+                 limiar_erro: float = 0.01, verbose: bool = False):
 
         # Inicializando os hiperparâmetros do modelo
         self.comprimento_entrada = comprimento_entrada
@@ -53,6 +53,7 @@ class MLP:
         self.funcao_de_ativacao = funcao_de_ativacao
         self.taxa_de_aprendizado = taxa_de_aprendizado
         self.limiar_erro = limiar_erro
+        self.verbose = verbose
 
         # Inicializando as estruturas de dados dos pesos
 
@@ -81,7 +82,7 @@ class MLP:
         self.z_in = []  # entrada dos neurônios da camada oculta
 
         # Inicializa logger e writer
-        self.logger = Logger()
+        self.logger = Logger(verbose=self.verbose)
         self.writer = Writer()
 
         # Loga e salva configurações iniciais
@@ -113,7 +114,8 @@ class MLP:
 
             self.logger.log_inicio_epoca(epoca, self.epocas)
             erros_epoca = []
-            for i in range(dados_epoca.shape[0]):
+            n_amostras = dados_epoca.shape[0]
+            for i in range(n_amostras):
                 self.logger.log_iteracao_dado(i)
                 dado = dados_epoca.iloc[i]
                 self.forward(dado)
@@ -126,16 +128,19 @@ class MLP:
                     'iteracao': i+1,
                     'erro': erro
                 })
+                # Barra de progresso estilo Keras (silenciada se verbose=True)
+                erro_parcial = sum(erros_epoca) / len(erros_epoca)
+                self.logger.barra_progresso_epoca(
+                    epoca, self.epocas, i + 1, n_amostras, erro_medio=erro_parcial
+                )
 
             # Soma dos erros divididos pela quantidade de épocas
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
-            print(f"Erro médio da época: {epoca + 1}: {round(erro_medio, 6)}")
 
             # Check do critério de parada
             if self.limiar_erro is not None and self.check_limiar_de_erro(erro_medio, self.limiar_erro):
-                print(f"\n Parada identificada antecipada na época: {epoca+1}: erro {round(erro_medio, 6)}"
-                      f" limiar: {self.limiar_erro}")
+                self.logger.log_parada_antecipada(epoca + 1, erro_medio, self.limiar_erro)
                 break
 
 
@@ -178,6 +183,7 @@ class MLP:
         self.logger.log_camada_saida(self.B, self.b0, self.y_in, self.y)
 
     def teste(self, dados, rotulos, letras, valor_esperado):
+        self.logger.log_inicio_teste(dados.shape[0])
         count = 0
         resultados = []
         for i in range(dados.shape[0]):
@@ -207,8 +213,7 @@ class MLP:
                 'erro': erro_total
             })
 
-        print(f'-----------------------------------ACURACIA-----------------------------------')
-        print(f'Acurácia= {count}/{dados.shape[0]} = {count / dados.shape[0]}')
+        self.logger.log_acuracia_final(count, dados.shape[0])
 
         self.writer.write_saidas_teste(resultados)
         self.writer.write_acuracia(count, dados.shape[0])
