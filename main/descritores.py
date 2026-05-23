@@ -10,17 +10,12 @@ Módulo de extração de descritores de imagem.
 
 Descritores implementados:
 - HOG (Histogram of Oriented Gradients): captura a distribuição de gradientes de
-  intensidade/bordas em regiões locais da imagem. É robusto a pequenas variações
+  intensidade/bordas em regiões locais da imagem. Consegue lidar bem com pequenas variações
   de iluminação e deformações geométricas.
 
 - LBP (Local Binary Patterns): codifica a textura local de cada pixel comparando-o
   com seus vizinhos. É computacionalmente leve e invariante a transformações
   monotônicas de escala de cinza.
-
-Biblioteca utilizada: scikit-image
-Citação recomendada pelos autores:
-  Stéfan van der Walt et al., "scikit-image: image processing in Python",
-  PeerJ 2:e453, 2014. http://dx.doi.org/10.7717/peerj.453
 """
 
 import numpy as np

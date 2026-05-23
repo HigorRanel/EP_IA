@@ -6,7 +6,7 @@ Nomes e Nº USP:
 4. João de Melo Fantini - NUSP: 15462550
 5. Luiz Vicente Neto - NUSP: 14593054
 
-Implementação da Convolutional Neural Network (CNN) para classificação de imagens
+Implementação de uma Rede Neural Convolucional (CNN) para classificação de imagens
 do dataset Fashion MNIST.
 
 Suporta dois modos de entrada:
@@ -17,40 +17,39 @@ Suporta duas tarefas:
   - 'multiclasse': 10 classes do Fashion MNIST.
   - 'binaria':     2 classes (Camiseta=0 vs Calça=1).
 
-Arquitetura CNN (modo bruto):
-  ┌─────────────────────────────────────────────────────────────────┐
-  │ Entrada: (28, 28, 1)                                            │
-  │ Conv2D(32, kernel 3x3, ReLU) → BatchNorm → MaxPool(2x2)        │
-  │ Conv2D(64, kernel 3x3, ReLU) → BatchNorm → MaxPool(2x2)        │
-  │ Conv2D(128, kernel 3x3, ReLU) → BatchNorm                      │
-  │ Flatten → Dropout(0.4)                                          │
-  │ Dense(256, ReLU) → Dropout(0.3)                                 │
-  │ Dense(128, ReLU)                                                │
-  │ Saída: Dense(n_classes, Softmax) ou Dense(1, Sigmoid)           │
-  └─────────────────────────────────────────────────────────────────┘
+Arquitetura CNN (modo bruto, com as images de verdade):
 
-Arquitetura DNN (modo hog_lbp):
-  ┌─────────────────────────────────────────────────────────────────┐
-  │ Entrada: (D,) — vetor HOG+LBP                                   │
-  │ Dense(256, ReLU) → Dropout(0.3)                                 │
-  │ Dense(128, ReLU) → Dropout(0.2)                                 │
-  │ Dense(64, ReLU)                                                 │
-  │ Saída: Dense(n_classes, Softmax) ou Dense(1, Sigmoid)           │
-  └─────────────────────────────────────────────────────────────────┘
+  Entrada: (28, 28, 1)
+  Conv2D(32, kernel 3x3, ReLU) → BatchNorm → MaxPool(2x2)
+  Conv2D(64, kernel 3x3, ReLU) → BatchNorm → MaxPool(2x2)
+  Conv2D(128, kernel 3x3, ReLU) → BatchNorm
+  Flatten → Dropout(0.4)
+  Dense(256, ReLU) → Dropout(0.3)
+  Dense(128, ReLU)
+  Saída: Dense(n_classes, Softmax) ou Dense(1, Sigmoid)
+
+
+Arquitetura DNN () (modo hog_lbp):
+
+   Entrada: (D,) — vetor HOG+LBP
+   Dense(256, ReLU) → Dropout(0.3)
+   Dense(128, ReLU) → Dropout(0.2)
+   Dense(64, ReLU)
+   Saída: Dense(n_classes, Softmax) ou Dense(1, Sigmoid)
+
 
 Escolhas de projeto:
   - ReLU nas camadas ocultas: evita o problema do gradiente que desaparece
-    (vanishing gradient), converge mais rápido que sigmoid/tanh em CNNs.
+    e converge mais rápido que sigmoid/tanh em CNNs.
   - BatchNormalization: normaliza as ativações por mini-batch, acelerando
     o treinamento e permitindo taxas de aprendizado maiores.
-  - MaxPooling(2x2): reduz a dimensionalidade espacial preservando as
-    características mais salientes (bordas, texturas).
-  - Dropout: regularização estocástica que desativa neurônios aleatoriamente
+  - MaxPooling(2x2): reduz a dimensionalidade preservando as
+    características mais expressivas (bordas, texturas).
+  - Dropout: regularização que desativa neurônios aleatoriamente
     durante o treino, reduzindo overfitting.
-  - Adam: otimizador adaptativo que combina momentum e RMSProp; robusto
-    à escolha da taxa de aprendizado inicial.
+  - Adam: otimizador que combina momentum e RMSProp
   - Softmax (multiclasse) / Sigmoid (binária): funções de ativação de saída
-    adequadas a cada tipo de problema.
+    adequadas para cada tipo de problema.
 """
 
 import numpy as np
@@ -88,11 +87,11 @@ CLASSES_BINARIAS = {0: "Camiseta", 1: "Calça"}
 
 class CNN:
     """
-    Encapsula o ciclo de vida completo da CNN:
+    Contém o processo completo da CNN:
       1. Construção do modelo (build)
       2. Treinamento (fit)
       3. Teste e métricas (teste)
-      4. Persistência de artefatos (via WriterCNN)
+      4. Escrita de resultados e pesos (via WriterCNN)
       5. Log de console (via LoggerCNN)
     """
 
@@ -152,7 +151,7 @@ class CNN:
             "Classes":             str(self.nomes_classes),
         }
 
-        # Log no console e persistência em arquivo
+        # Log no console e escrita em arquivo
         self.logger.log_configuracoes_cnn(self.tarefa, self.modo_dados, config)
         self.writer.write_hiperparametros_cnn(
             tarefa=self.tarefa,
@@ -169,11 +168,11 @@ class CNN:
         Constrói a CNN para dados brutos (imagens 28x28x1).
 
         Camadas convolucionais:
-          - Conv2D com kernel 3x3: tamanho padrão que equilibra campo receptivo
-            e custo computacional. ReLU para não-linearidade.
+          - Conv2D com kernel 3x3: tamanho padrão (que equilibra campo receptivo
+            e custo computacional) tirar essa parada aí. Não sei pelo que substituir.
+            ReLU para não-linearidade.
           - BatchNormalization após cada Conv: estabiliza o treinamento.
-          - MaxPooling 2x2: reduz altura e largura pela metade, forçando
-            invariância a pequenas translações.
+          - MaxPooling 2x2: reduz altura e largura pela metade.
 
         Camadas densas:
           - Flatten: transforma o tensor 3D em vetor 1D.
@@ -223,7 +222,7 @@ class CNN:
         Constrói uma DNN (rede totalmente conectada) para vetores HOG+LBP.
 
         Como os descritores já são representações compactas das imagens,
-        não há necessidade de camadas convolucionais.
+        não são necessárias camadas convolucionais.
 
         Args:
             input_dim: dimensão do vetor de entrada (D_hog + D_lbp).
@@ -245,7 +244,7 @@ class CNN:
         Constrói e compila o modelo conforme o modo de dados e a tarefa.
 
         Args:
-            input_shape_ou_dim: tuple (H, W, C) para modo 'bruto',
+            input_shape_ou_dim: tupla (H, W, C) para modo 'bruto',
                                  ou int D para modo 'hog_lbp'.
         """
         if self.modo_dados == 'bruto':
@@ -270,10 +269,9 @@ class CNN:
 
     def fit(self, X_treino, y_treino, X_val=None, y_val=None):
         """
-        Treina o modelo e persiste pesos iniciais, finais e histórico.
+        Treina o modelo e guarda os pesos iniciais, finais e histórico.
 
-        Usa um LoggerCallback para acionar o LoggerCNN ao fim de cada época,
-        mantendo separação de responsabilidades: o Keras treina, o Logger loga.
+        Usa um LoggerCallback para usar o LoggerCNN no final de cada época.
 
         Args:
             X_treino: array de entrada de treinamento.
@@ -352,7 +350,7 @@ class CNN:
 
     def teste(self, X_teste, y_teste):
         """
-        Avalia o modelo no conjunto de teste e persiste todos os artefatos.
+        Avalia o modelo no conjunto de teste e salva todos os artefatos.
 
         Para a tarefa binária, a saída da sigmoid é um escalar em [0,1]:
           - >= 0.5 → classe 1 (Calça)
@@ -397,7 +395,7 @@ class CNN:
 
         self.logger.log_acuracia_final(acertos, total, self.tarefa, self.modo_dados)
 
-        # Monta matriz de confusão (mesma lógica do mlp.py)
+        # Monta matriz de confusão
         n = len(self.nomes_classes)
         matriz = [[0] * n for _ in range(n)]
         for real, prev in zip(y_teste, y_pred):

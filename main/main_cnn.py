@@ -6,25 +6,19 @@ Nomes e Nº USP:
 4. João de Melo Fantini - NUSP: 15462550
 5. Luiz Vicente Neto - NUSP: 14593054
 
-Ponto de entrada da CNN — separado do main.py do MLP.
-
 Executa quatro experimentos em sequência:
-  1. Multiclasse com dados brutos (10 classes, imagens 28x28)
-  2. Binária com dados brutos    (Camiseta vs Calça)
-  3. Multiclasse com HOG+LBP     (10 classes, vetores de descritores)
-  4. Binária com HOG+LBP         (Camiseta vs Calça)
-
-Cada experimento produz uma subpasta dentro de 'Saidas/' com todos os
-artefatos exigidos pela especificação (hiperparâmetros, pesos iniciais/finais,
-histórico de erro, saídas de teste, matriz de confusão, acurácia).
+  1. Classificação multiclasse com as imagens originais (10 classes, imagens 28x28)
+  2. Classificação binária com as imagens originais     (Camiseta vs Calça)
+  3. Classificação multiclasse com HOG+LBP              (10 classes, vetores de descritores)
+  4. Classificação binária com HOG+LBP                  (Camiseta vs Calça)
 
 Divisão dos dados:
-  - Treino:   60.000 amostras (split padrão do Keras/Fashion MNIST)
-  - Validação: 20% do treino via validation_split (usado pelo EarlyStopping)
-  - Teste:    10.000 amostras (split padrão do Keras/Fashion MNIST)
+  - Treino:   60.000 amostras
+  - Validação: 20% do treino via validation_split
+  - Teste:    10.000 amostras
 
 O Fashion MNIST já vem pré-dividido em 60k/10k pelo Keras, o que é a
-divisão canônica usada na literatura para permitir comparações justas.
+divisão mais comum usada na literatura.
 """
 
 import os
@@ -44,14 +38,14 @@ from descritores import extrair_hog_lbp
 
 
 # ============================================================
-# CONFIGURAÇÕES GLOBAIS DOS EXPERIMENTOS
+# CONFIGURAÇÃO DOS EXPERIMENTOS
 # ============================================================
 
 # Classes da tarefa binária: Camiseta (0) vs Calça (1)
 CLASSES_BINARIA = [0, 1]
 
 EPOCAS          = 20       # Máximo de épocas; EarlyStopping pode parar antes
-BATCH_SIZE      = 64
+BATCH_SIZE      = 64       #
 TAXA_APRENDIZADO = 0.001
 DIR_SAIDAS      = os.path.join(BASE_DIR, "Saidas")
 
@@ -60,20 +54,15 @@ def carregar_dados():
     """
     Carrega o Fashion MNIST via Keras e normaliza os pixels para [0, 1].
 
-    O Fashion MNIST é um dataset de 70.000 imagens 28x28 em escala de cinza,
-    dividido em 60.000 de treino e 10.000 de teste, com 10 classes de roupas.
-    É um substituto mais desafiador para o MNIST de dígitos.
-
-    Returns:
+    Retorna:
         (X_treino, y_treino, X_teste, y_teste): arrays NumPy normalizados.
-        X_* tem shape (N, 28, 28) com valores float32 em [0, 1].
-        y_* tem shape (N,) com inteiros de 0 a 9.
+        X_* tem formato (N, 28, 28) com valores float32 no intervalo [0, 1].
+        y_* tem formato (N,) com inteiros de 0 a 9.
     """
     print("\n=== CARREGANDO FASHION MNIST ===")
     (X_treino, y_treino), (X_teste, y_teste) = keras.datasets.fashion_mnist.load_data()
 
-    # Normalização: divide por 255 para colocar valores em [0, 1]
-    # Isso estabiliza o treinamento pois os pesos iniciais são pequenos
+    # Normalização: divide por 255 para colocar valores no intervalo [0, 1]
     X_treino = X_treino.astype(np.float32) / 255.0
     X_teste  = X_teste.astype(np.float32)  / 255.0
 
@@ -87,25 +76,21 @@ def preparar_dados_brutos(X_treino, X_teste):
     """
     Adiciona o canal de cor (escala de cinza = 1 canal) exigido pelo Conv2D.
 
-    O Keras espera tensores de imagem com shape (N, H, W, C).
-    Como Fashion MNIST é escala de cinza, C=1.
-
-    Returns:
-        X_treino e X_teste com shape (N, 28, 28, 1).
+    Retorna:
+        X_treino e X_teste com formato (N, 28, 28, 1).
     """
     return X_treino[..., np.newaxis], X_teste[..., np.newaxis]
 
 
 def filtrar_binario(X, y):
     """
-    Filtra apenas as amostras das classes binárias (Camiseta=0, Calça=1).
-
+    Seleciona apenas as amostras das classes Camiseta=0 e Calças=1.
     Args:
-        X: array de imagens ou descritores.
-        y: array de rótulos inteiros (0–9).
+        X: array com imagens ou descritores.
+        y: array com rótulos inteiros (0–9).
 
-    Returns:
-        (X_bin, y_bin): arrays filtrados com rótulos remapeados para {0, 1}.
+    Retorna:
+        (X_bin, y_bin): arrays filtrados com rótulos 0 para camiseta e 1 para calças
     """
     mascara = np.isin(y, CLASSES_BINARIA)
     X_bin = X[mascara]
@@ -113,6 +98,7 @@ def filtrar_binario(X, y):
 
     # Remapeia: classe original 0 → índice 0, classe original 1 → índice 1
     # (neste caso já são 0 e 1, mas o remapeamento é explícito para generalidade)
+    #MUDAR ISSO AQUI
     mapa = {cls: idx for idx, cls in enumerate(CLASSES_BINARIA)}
     y_bin = np.array([mapa[label] for label in y_bin])
 
@@ -123,7 +109,7 @@ def filtrar_binario(X, y):
 
 def executar_experimento(tarefa: str, modo_dados: str, X_treino, y_treino, X_teste, y_teste):
     """
-    Executa um experimento completo: build → fit → teste.
+    Executa um experimento completo: build -> fit -> teste.
 
     Args:
         tarefa:    'multiclasse' ou 'binaria'.
@@ -156,7 +142,6 @@ def executar_experimento(tarefa: str, modo_dados: str, X_treino, y_treino, X_tes
 
     # Treina com 20% do treino usado como validação (para EarlyStopping)
     cnn.fit(X_treino, y_treino, X_val=None, y_val=None)
-    # Nota: validation_split é passado internamente no fit do Keras via callback;
     # aqui usamos o split padrão do fit para simplicidade.
     # Para passar explicitamente, basta dividir X_treino antes e passar X_val/y_val.
 
