@@ -5,30 +5,31 @@ Nomes e Nº USP:
 3. Higor Ranel Viani Lopes - NUSP: 15552946
 4. João de Melo Fantini - NUSP: 15462550
 5. Luiz Vicente Neto - NUSP: 14593054
+
+Módulo que implementa as funções de ativação
 """
 
 import numpy as np
 
-def step_t(inpt:float, num:float)->float:
-    if inpt >= num:
-        return 1
-    else:
-        return 0
+def sigmoid(inpt):
+    """
+    Calcula a função de ativação sigmoid
 
-def lin_part(inpt:float)->float:
-    if inpt<=-1/2:
-        return -1
-    elif inpt<1/2:
-        return inpt
-    else:
-        return 1
+    Recebe como parâmetros:
+    1) inpt: valor de entrada (ou array NumPy)
 
-def sigmoid(inpt:float)->float:
+    Retorna: 1 / (1 + e^(-inpt))
+    """
     return 1/(1+np.exp(-inpt))
 
-def derivada_sigmoid(inpt:float)->float:
+def derivada_sigmoid(inpt):
+    """
+    Calcula a derivada da função sigmoid, usada no backpropagation
+
+    Recebe como parâmetros:
+    1) inpt: valor de entrada (ou array NumPy)
+
+    Retorna: sigmoid(inpt) * (1 - sigmoid(inpt))
+    """
     # A derivida da sigmoid é matematicamente definida como:
     return sigmoid(inpt) * (1 - sigmoid(inpt))
-
-def relu(x):
-    return np.maximum(0, x)
