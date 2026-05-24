@@ -5,6 +5,8 @@ Nomes e Nº USP:
 3. Higor Ranel Viani Lopes - NUSP: 15552946
 4. João de Melo Fantini - NUSP: 15462550
 5. Luiz Vicente Neto - NUSP: 14593054
+
+Classe principal do trabalho onde a MLP é implementada
 """
 
 import numpy as np
@@ -23,7 +25,6 @@ import plots
 
 class MLP:
     """
-
     Implementação da Rede Neural Mutilayer Perceptron (MLP)
     com uma camada oculta, treinada com Backpropagation
     (Gradiente Descendente)
@@ -39,12 +40,31 @@ class MLP:
 
     Bias camada saída: b0[k] vetor(comprimento_saida)
     b_0k
-
     """
 
-    def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int, epocas: int,
-                 funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8,
-                 verbose: bool = False, paciencia: int = 10):
+    def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int,
+                 epocas: int,
+                 funcao_de_ativacao=atv.sigmoid,
+                 taxa_de_aprendizado: float = 0.3,
+                 verbose: bool = False, paciencia: int = 20):
+        """
+        Inicializa a MLP: guarda os hiperparâmetros, cria as matrizes de pesos e
+        bias das camadas oculta e de saída, prepara as estruturas de erro e
+        instancia o logger e o writer
+
+        Recebe como parâmetros:
+        1) comprimento_entrada: nº de neurônios da camada de entrada
+        2) comprimento_oculta: nº de neurônios da camada oculta
+        3) comprimento_saida: nº de neurônios da camada de saída
+        4) épocas: nº máximo de épocas de treinamento
+        5) funcao_de_ativacao: função de ativação usada nas camadas (padrão: sigmoid)
+        6) taxa_de_aprendizado: passo α do gradiente descendente (padrão: 0.3)
+        7) verbose: se True, imprime detalhes de cada iteração no terminal
+        8) paciencia: nº de épocas sem melhora na validação
+        toleradas antes da parada antecipada
+
+        Retorna: None (apenas inicializa o objeto)
+        """
 
         # Inicializando os hiperparâmetros do modelo
         self.comprimento_entrada = comprimento_entrada
@@ -73,8 +93,8 @@ class MLP:
         self.b0 = gera_matriz_bias(self.comprimento_saida)
 
         # Salva os erros por época
-        self.erros = []        # EQM de treino por época
-        self.erros_val = []    # EQM de validação por época (vazio se não houver validação)
+        self.erros = [] # EQM de treino por época
+        self.erros_val = []  # EQM de validação por época (vazio se não houver validação)
 
         #
         self.y = []  # saída dos neurônios da camada de saída
@@ -101,22 +121,25 @@ class MLP:
         )
 
         self.erros_iteracao = []  # lista de {epoca, iteracao, erro}
-        # self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
+
+        # Salva os valores dos pesos ao serem inicializados
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="iniciais")
 
     def fit(self, dados, rotulos, val_dados=None, val_rotulos=None):
         """
-        Treina a rede com Backpropagation (Gradiente Descendente).
+        Treina a rede com Backpropagation (Gradiente Descendente)
 
-        Se val_dados/val_rotulos forem fornecidos, ao final de cada época o
-        EQM de validação é calculado e a PARADA ANTECIPADA é aplicada: o
-        treinamento é interrompido quando o erro de validação não melhora por
-        `self.paciencia` épocas consecutivas. Não há restauração de pesos — os
-        pesos finais são os da última época treinada.
+        Recebe como parâmetros:
+        1) dados: dataframe com as amostras de treino
+        (uma amostra por linha)
+        2) rotulos: array com os vetores-alvo (one-hot) correspondentes
+        às amostras de treino
+        3) val_dados: dataframe com as amostras de validação (opcional, mas
+        ativa a parada antecipada)
+        4) val_rotulos: array com os vetores-alvo do conjunto de validação (opcional)
 
-        Args:
-            dados, rotulos:         conjunto de TREINO.
-            val_dados, val_rotulos: conjunto de VALIDAÇÃO (opcional).
+        Retorna: None (atualiza os pesos da rede,
+        salva pesos/erros e gera o gráfico de erro)
         """
         usar_validacao = val_dados is not None and val_rotulos is not None
 
@@ -126,7 +149,7 @@ class MLP:
 
         for epoca in range(self.epocas):
 
-            # O embaralhamento por época é necessário pois o holdout estratificado agrupa as amostras
+            # O embaralhamento por época é necessário, pois o holdout estratificado agrupa as amostras
             # por classe. Sem isso, a rede veria todas as variações de "A", depois todas de "B", e assim
             # por diante, de forma que os pesos sejam ajustados repetidamente para uma única letra
             # por vez, prejudicando o que foi aprendido sobre as letras anteriores. Ao embaralhar,
@@ -143,14 +166,16 @@ class MLP:
                 dado = dados_epoca.iloc[i]
                 self.forward(dado)
                 resp = rotulos_epoca[i]
-                erro = self.backpropagate(dado, resp, self.z_in, self.z, self.y_in, self.y)
+                erro = self.backpropagate(dado, resp,
+                                          self.z_in, self.z,
+                                          self.y_in, self.y)
                 erros_epoca.append(erro)
                 self.erros_iteracao.append({
                     'epoca': epoca+1,
                     'iteracao': i+1,
                     'erro': erro
                 })
-                # Barra de progresso estilo Keras (silenciada se verbose=True)
+                # Barra de progresso (silenciada se verbose=True)
                 erro_parcial = sum(erros_epoca) / len(erros_epoca)
                 self.logger.barra_progresso_epoca(
                     epoca, self.epocas, i + 1, n_amostras, erro_medio=erro_parcial
@@ -160,9 +185,9 @@ class MLP:
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
 
-            # ----- PARADA ANTECIPADA POR VALIDAÇÃO -----
+            # Parada antecipada por validação
             if usar_validacao:
-                erro_val = self._eqm_conjunto(val_dados, val_rotulos)
+                erro_val = self.eqm_conjunto(val_dados, val_rotulos)
                 self.erros_val.append(erro_val)
                 self.logger.log_erro_validacao(epoca + 1, erro_medio, erro_val)
 
@@ -175,32 +200,43 @@ class MLP:
 
                 # Interrompe se a paciência foi excedida
                 if epocas_sem_melhora >= self.paciencia:
-                    self.logger.log_parada_antecipada_val(epoca + 1, erro_val, self.paciencia)
+                    self.logger.log_parada_antecipada_val(epoca + 1, erro_val,
+                                                          self.paciencia)
                     break
 
         # Salva pesos finais e erros ao fim do treinamento
-        self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="finais")
-        self.writer.write_erros(self.erros, self.erros_iteracao, self.erros_val)
+        self.writer.write_pesos(self.W, self.w0,
+                                self.B, self.b0,
+                                etapa="finais")
+        self.writer.write_erros(self.erros, self.erros_iteracao,
+                                self.erros_val)
 
         # Gráfico de comportamento do erro (treino vs. validação) por época
-        caminho_grafico = self.writer._obter_caminho("8_curva_erro.png")
+        caminho_grafico = self.writer.obter_caminho("8_curva_erro.png")
         plots.plotar_curva_erro(
             self.erros,
             self.erros_val if self.erros_val else None,
             caminho_saida=caminho_grafico
         )
 
-    def _eqm_conjunto(self, dados, rotulos):
+    def eqm_conjunto(self, dados, rotulos):
         """
         Calcula o Erro Quadrático Médio (EQM) sobre um conjunto inteiro,
-        executando apenas o forward (sem ajuste de pesos). Usado para medir
-        o erro de validação ao final de cada época.
+        de forma a executar apenas o feedforward (sem ajuste de pesos).
+        Usado para medir o erro de validação ao final de cada época
 
-        Convenção de Haykin (slides 55-56):
-            E_av = (1/N) * Σ_amostras E(n),  com  E(n) = (1/2) * Σ_k (t_k - y_k)^2
+        De acordo Haykin:
+        E_av = (1/N) * Σ_amostras E(n), com E(n) = (1/2) * Σ_k (t_k - y_k)^2
 
-        onde N é o nº de amostras e k percorre os neurônios da camada de saída.
+        onde N é o nº de amostras e k percorre os neurônios da camada de saída
+
+        Recebe como parâmetros:
+        1) dados: dataframe com as amostras a serem avaliadas
+        2) rótulos: array com os vetores-alvo (one-hot) correspondentes às amostras
+
+        Retorna: O EQM do conjunto, 0.0 se o conjunto estiver vazio
         """
+
         m = self.comprimento_saida
         soma = 0.0
         n = dados.shape[0]
@@ -214,26 +250,41 @@ class MLP:
 
     def forward(self, entrada):
         """
+        Executa o feedforward, de forma a propagar uma
+        amostra da entrada até a saída
+
         camada oculta:
-        z_in_j = w_0j + somatório de 1 até comp camada entrada (entrada_i * w_ij)
+        i percorre os valores de 1 até o valor do comprimento da camada de entrada
+        z_in_j = w_0j + Σ_i (entrada_i * w_ij)
         z_j = f (z_in_j)
 
         camada de saída:
-        y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
+        j percorre os valores de 1 até o valor do comprimento da camada oculta
+        y_in_k = b_0k + Σ_j (z_j * bw_jk)
         y_k = f(y_in_k)
+
+        Recebe como parâmetros:
+        1) entrada: vetor de atributos de uma única amostra
+
+        Retorna: None (armazena z_in, z, y_in e y nos atributos do objeto)
         """
+
         entrada = np.array(entrada)
-        # Camada oculta:
+
+        # CAMADA OCULTA:
 
         # z_in_j = w_0j + somatório de cada entrada multiplicado pelo
         # respectivo peso somado ao bias do neurônio j da camada oculta
         self.z_in = self.w0 + self.W.T @ entrada
 
-        # aplicamos a função de ativação em z_in_j
+        #Primeiro, vetorizamos a função de ativação para que ela possa ser aplicada às entradas de todos
+        #os neurônios de uma só vez.
         funcao_de_ativacao_vec = np.vectorize(self.funcao_de_ativacao)
+
+        # aplicamos a função de ativação em z_in_j
         self.z = funcao_de_ativacao_vec(self.z_in)
 
-        # Camada de saída
+        # CAMADA DE SAÍDA:
 
         # y_in_k = b_0k + somatório de 1 até comp camada oculta (z_j * bw_jk)
         self.y_in = self.b0 + self.B.T @ self.z
@@ -241,21 +292,42 @@ class MLP:
         # y_k = f(y_in_k)
         self.y = funcao_de_ativacao_vec(self.y_in)
 
+        # Utilização dos loggers para imprimir no terminal informações (como pesos e entradas) da camada oculta
         self.logger.log_entrada(list(entrada))
         self.logger.log_camada_oculta(self.W, self.w0, self.z_in, self.z)
         self.logger.log_camada_saida(self.B, self.b0, self.y_in, self.y)
 
     def teste(self, dados, rotulos, letras, valor_esperado):
+        """
+        Função que possibilita a aplicação do forward para os dados de teste
+
+        Recebe como parâmetros:
+        1) dados: dataframe com as amostras de teste
+        2) rótulos: array com os vetores-alvo (one-hot) das amostras de teste
+        3) letras: lista de letras do alfabeto (índice da saída - letra prevista)
+        4) valor_esperado: dataframe com a letra esperada de cada amostra de teste
+
+        Retorna: Lista de dicionários, um por amostra, com a letra esperada, a letra
+        prevista, o vetor de saída da rede e o erro total da amostra
+        """
+
         self.logger.log_inicio_teste(dados.shape[0])
         count = 0
         resultados = []
+
+        #Loop que percorre o conjunto de teste
         for i in range(dados.shape[0]):
+
             self.logger.log_iteracao_teste(i)
             self.forward(dados.iloc[i])
+
+            #Leitura da saída do feedforward. No array de saída, selecionamos
+            #o índice do maior valor do array,
+            #que representa a letra predita
             saida = np.array(self.y)
             saida = list(np.round(saida, 2))
             indice_letra = saida.index(max(saida))
-
+            
             prev = letras[indice_letra]
             esp = valor_esperado.iat[i, 0]
 
@@ -263,11 +335,14 @@ class MLP:
             if (prev.casefold() == esp.casefold()):
                 count = count + 1
 
+            #Cálculo da diferença entre o array de previsão e o esperado
             resp = rotulos[i]
             erro = np.array(self.y) - np.array(resp)
             erro_total = sum(erro)
 
-            self.logger.log_resultado_teste(prev, esp, saida, erro_total)
+            self.logger.log_resultado_teste(prev, esp,
+                                            saida,
+                                            erro_total)
 
             resultados.append({
                 'esperado': esp,
@@ -285,6 +360,9 @@ class MLP:
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
         """
+        Retropropaga o erro de uma amostra e atualiza os pesos e bias
+        das duas camadas
+
         CAMADA DE SAÍDA - Cálculo do termo de erro:
             δ_k = (t_k - y_k) * f'(y_in_k)
 
@@ -294,15 +372,25 @@ class MLP:
 
         CAMADA OCULTA - Retropropagação do erro:
             δ_in_j = B * δ_k
-            δ_j    = δ_in_j * f'(z_in_j)
+            δ_j = δ_in_j * f'(z_in_j)
 
         CAMADA OCULTA - Cálculo das correções de peso:
-            ΔW   = α * δ_j * x
+            ΔW = α * δ_j * x
             Δw_0j = α * δ_j
 
         ATUALIZAÇÃO DOS PESOS:
             b_jk(new) = b_jk(old) + Δb_jk
             w_ij(new) = w_ij(old) + Δw_ij
+
+        Recebe como parâmetros:
+        1) x: vetor de entrada da amostra atual
+        2) t: vetor-alvo (one-hot) esperado para a amostra
+        3) z_in: entradas dos neurônios da camada oculta
+        4) z: saídas (ativadas) dos neurônios da camada oculta
+        5) y_in: entradas dos neurônios da camada de saída
+        6) y: saídas (ativadas) dos neurônios da camada de saída
+
+        Retorna: O erro instantâneo E(n) = (1/2) * Σ_k (t_k - y_k)^2 desta amostra
         """
 
         # Converte entradas para arrays NumPy para operações matriciais
@@ -328,13 +416,13 @@ class MLP:
         # Correção dos bias da camada de saída: shape (n_saida,)
         delta_b0 = taxa * deltaMaior_k
 
-        # δ_in_j = B * δ_k
+        # δ_in_j = b_jk * δ_k
         deltaMaior_in_j = self.B @ deltaMaior_k
 
         # δ_j = δ_in_j * f'(z_in_j)
         deltaMaior_j = deltaMaior_in_j * derivada_sigmoid_vec(z_in)
 
-        # ΔW = α * δ_j * x
+        # ΔW = α * δ_j * x_i
         delta_W = taxa * np.outer(x, deltaMaior_j)
 
         # Δw_0j = α * δ_j
@@ -354,27 +442,33 @@ class MLP:
         # w_0j(new) = w_0j(old) + Δw_0j
         self.w0 += delta_w0
 
-        self.logger.log_backprop_erros(y, t, sum((t[k] - y[k]) for k in range(self.comprimento_saida)))
+        self.logger.log_backprop_erros(y, t,
+                                       sum((t[k] - y[k]) for k in range(
+                                           self.comprimento_saida)))
         self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
         # Erro instantâneo E(n) DESTA amostra, na convenção de Haykin:
         # E(n) = (1/2) * Σ_k (t_k - y_k)^2, somando sobre os m neurônios de saída.
-        # OBS: o fator não afeta o aprendizado, pois o gradiente usa (t-y) direto
-        # (sem o 1/2); ele apenas alinha o valor reportado à definição dos slides.
         # O E_av = (1/N) Σ_n E(n) é obtido em fit() ao fazer a média desses valores
-        # por época, fechando exatamente a fórmula E_av do material.
+        # por época
         m = self.comprimento_saida
         erro = 0.5 * np.sum((t[:m] - y[:m]) ** 2)
         return erro
 
-    def set_funcao_de_ativacao(self, funcao):
-        self.funcao_de_ativacao = funcao
-
     def matriz_confusao(self, resultados, letras):
         """
-        Essa função visa gerar e exibir no console a matriz de confusão após o teste
+        Gera e exibe no console a matriz de confusão após o teste
+
+        Recebe como parâmetros:
+        1) resultados: Um array em que cada posição corresponde a um dado do conjunto de teste
+        e guarda a letra prevista, a letra esperada, os valores da camada de saída
+        e a diferença absoluta entre os valores do array
+        de saída esperado e o array gerado pelo feedforward do mlp
+        2) letras: O conjunto de letras do alfabeto
+
+        Retorna: Matriz de confusão
         """
 
         n = len(letras)
@@ -402,8 +496,8 @@ class MLP:
         print("-" * 60)
         self.writer.write_matriz_confusao(matriz, letras)
 
-        # Heatmap da matriz de confusão para os slides
-        caminho_mc = self.writer._obter_caminho("9_matriz_confusao.png")
+        # Heatmap da matriz de confusão
+        caminho_mc = self.writer.obter_caminho("9_matriz_confusao.png")
         plots.plotar_matriz_confusao(matriz, letras, caminho_saida=caminho_mc)
 
         return matriz
