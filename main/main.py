@@ -122,7 +122,6 @@ def main():
         26,
         epocas=250,
         taxa_de_aprendizado=0.3,
-        limiar_erro=None,   # parada agora é por validação (paciência), não por limiar de treino
         paciencia=25       # para se o erro de validação não melhorar por 10 épocas
     )
 

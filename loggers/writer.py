@@ -42,7 +42,7 @@ class Writer:
     # ==========================================
     # ARQUIVO 1: HIPERPARÂMETROS
     # ==========================================
-    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao, epocas, limiar_erro):
+    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao, epocas):
         caminho = self._obter_caminho("1_hiperparametros.txt")
         with open(caminho, 'w', encoding='utf-8') as f:
             f.write("=== HIPERPARAMETROS DA REDE ===\n")
@@ -50,7 +50,6 @@ class Writer:
             f.write(f"Taxa de Aprendizado: {taxa_aprendizado}\n")
             f.write(f"Função de Ativação:  {ativacao}\n")
             f.write(f"Épocas:              {epocas}\n")
-            f.write(f"Limiar de Erro:      {limiar_erro if limiar_erro is not None else 'inativo'}\n")
 
     # ==========================================
     # ARQUIVOS 2 E 3: PESOS INICIAIS E FINAIS

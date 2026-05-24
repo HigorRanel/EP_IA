@@ -44,7 +44,7 @@ class MLP:
 
     def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int, epocas: int,
                  funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8,
-                 limiar_erro: float = 0.01, verbose: bool = False, paciencia: int = 10):
+                 verbose: bool = False, paciencia: int = 10):
 
         # Inicializando os hiperparâmetros do modelo
         self.comprimento_entrada = comprimento_entrada
@@ -53,7 +53,6 @@ class MLP:
         self.epocas = epocas
         self.funcao_de_ativacao = funcao_de_ativacao
         self.taxa_de_aprendizado = taxa_de_aprendizado
-        self.limiar_erro = limiar_erro
         self.verbose = verbose
         # Paciência da parada antecipada: nº de épocas sem melhora no erro de
         # validação toleradas antes de interromper o treinamento.
@@ -98,7 +97,7 @@ class MLP:
         self.writer.write_hiperparametros(
             comprimento_entrada, comprimento_oculta, comprimento_saida,
             taxa_de_aprendizado, funcao_de_ativacao.__name__,
-            epocas, limiar_erro
+            epocas
         )
 
         self.erros_iteracao = []  # lista de {epoca, iteracao, erro}
@@ -179,11 +178,6 @@ class MLP:
                     self.logger.log_parada_antecipada_val(epoca + 1, erro_val, self.paciencia)
                     break
 
-            # ----- Critério secundário: limiar de erro de TREINO (opcional) -----
-            elif self.limiar_erro is not None and self.check_limiar_de_erro(erro_medio, self.limiar_erro):
-                self.logger.log_parada_antecipada(epoca + 1, erro_medio, self.limiar_erro)
-                break
-
         # Salva pesos finais e erros ao fim do treinamento
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="finais")
         self.writer.write_erros(self.erros, self.erros_iteracao, self.erros_val)
@@ -202,9 +196,10 @@ class MLP:
         executando apenas o forward (sem ajuste de pesos). Usado para medir
         o erro de validação ao final de cada época.
 
-        EQM = (1/N) * Σ_amostras [ (1/m) * Σ_k (t_k - y_k)^2 ]
+        Convenção de Haykin (slides 55-56):
+            E_av = (1/N) * Σ_amostras E(n),  com  E(n) = (1/2) * Σ_k (t_k - y_k)^2
 
-        onde N é o nº de amostras e m o nº de neurônios de saída.
+        onde N é o nº de amostras e k percorre os neurônios da camada de saída.
         """
         m = self.comprimento_saida
         soma = 0.0
@@ -213,8 +208,9 @@ class MLP:
             self.forward(dados.iloc[i])
             t = np.array(rotulos[i])
             y = np.array(self.y)
-            soma += np.sum((t[:m] - y[:m]) ** 2) / m
-        return soma / n if n > 0 else 0.0
+            # E(n) = (1/2) * Σ_k (t_k - y_k)^2
+            soma += 0.5 * np.sum((t[:m] - y[:m]) ** 2)
+        return soma / n if n > 0 else 0.0  # E_av = (1/N) Σ_n E(n)
 
     def forward(self, entrada):
         """
@@ -363,20 +359,15 @@ class MLP:
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
-        # Erro Quadrático Médio (EQM) DESTA amostra: média do quadrado do erro
-        # sobre os m neurônios de saída -> (1/m) * Σ_k (t_k - y_k)^2.
-        # OBS: o fator não afeta o aprendizado, pois o gradiente usa (t-y) direto;
-        # ele apenas alinha o valor reportado ao termo "erro quadrático médio".
+        # Erro instantâneo E(n) DESTA amostra, na convenção de Haykin:
+        # E(n) = (1/2) * Σ_k (t_k - y_k)^2, somando sobre os m neurônios de saída.
+        # OBS: o fator não afeta o aprendizado, pois o gradiente usa (t-y) direto
+        # (sem o 1/2); ele apenas alinha o valor reportado à definição dos slides.
+        # O E_av = (1/N) Σ_n E(n) é obtido em fit() ao fazer a média desses valores
+        # por época, fechando exatamente a fórmula E_av do material.
         m = self.comprimento_saida
-        erro_eqm = np.sum((t[:m] - y[:m]) ** 2) / m
-        return erro_eqm
-
-    def check_limiar_de_erro(self, erro_medio, limiar):
-        """
-        Essa função visa se o erro médio da época atingiu o limiar mínimo aceitável
-        Retorna True se o treinamento deve parar
-        """
-        return erro_medio <= limiar
+        erro = 0.5 * np.sum((t[:m] - y[:m]) ** 2)
+        return erro
 
     def set_funcao_de_ativacao(self, funcao):
         self.funcao_de_ativacao = funcao
