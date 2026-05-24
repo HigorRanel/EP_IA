@@ -33,7 +33,11 @@ def criar_dict(y_col):
 
     return ordem_alfabetica, dict_conversao
 
-def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, seed=42):
+def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras,
+                          test_size=0.3, val_size=0.2, seed=42):
+    """
+    Divide os dados em TREINO, VALIDAÇÃO e TESTE de forma estratificada por letra.
+    """
     np.random.seed(seed)
 
     total = len(x)
@@ -42,9 +46,9 @@ def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_si
     indices_restantes = list(range(total - 130))  # 1196
 
     # Quantas amostras ainda precisam ir para o teste além dos 130 fixos
-    n_teste_extra = n_teste_total - 130  # ~268
+    n_teste_extra = n_teste_total - 130 # ~268
 
-    indices_treino = []
+    indices_treino_total = []   # treino + validação, antes de separar a validação
     indices_teste_extra = []
 
     colunas_letras_restantes = colunas_letras.iloc[indices_restantes]
@@ -57,26 +61,52 @@ def holdout_estratificado(x, valor_esperado_df, rotulos, colunas_letras, test_si
         n_extra_letra = max(1, int(len(indices_letra) * (n_teste_extra / len(indices_restantes))))
 
         indices_teste_extra.extend(indices_restantes[i] for i in indices_letra[:n_extra_letra])
-        indices_treino.extend(indices_restantes[i] for i in indices_letra[n_extra_letra:])
+        indices_treino_total.extend(indices_restantes[i] for i in indices_letra[n_extra_letra:])
 
     indices_teste = indices_fixos_teste + indices_teste_extra
+
+    # ----- Separa a VALIDAÇÃO de dentro do treino, estratificada por letra -----
+    indices_treino = []
+    indices_val = []
+    # Mapeia os índices de treino_total para suas letras
+    letras_treino_total = colunas_letras.iloc[indices_treino_total].values
+    indices_treino_total = np.array(indices_treino_total)
+
+    for letra in sorted(np.unique(letras_treino_total)):
+        idx_letra = indices_treino_total[letras_treino_total == letra]
+        idx_letra = idx_letra.copy()
+        np.random.shuffle(idx_letra)
+
+        # Pelo menos 1 amostra de validação por letra (se houver mais de 1)
+        n_val_letra = max(1, int(len(idx_letra) * val_size)) if len(idx_letra) > 1 else 0
+
+        indices_val.extend(idx_letra[:n_val_letra].tolist())
+        indices_treino.extend(idx_letra[n_val_letra:].tolist())
 
     treino_x = x.iloc[indices_treino, :]
     treino_y = valor_esperado_df.iloc[indices_treino, :]
     rotulos_treino = rotulos[indices_treino]
 
+    val_x = x.iloc[indices_val, :]
+    val_y = valor_esperado_df.iloc[indices_val, :]
+    rotulos_val = rotulos[indices_val]
+
     teste_x = x.iloc[indices_teste, :]
     teste_y = valor_esperado_df.iloc[indices_teste, :]
     rotulos_teste = rotulos[indices_teste]
 
-    print(f"\n=== DIVISÃO HOLDOUT ESTRATIFICADO (test_size={test_size}, seed={seed}) ===")
-    print(f"Total:  {total} amostras")
-    print(f"Treino: {len(treino_x)} amostras ({round(len(treino_x)/total*100, 1)}%)")
-    print(f"Teste:  {len(teste_x)} amostras  ({round(len(teste_x)/total*100, 1)}%)")
-    print(f" 130 fixos (finais) + {len(indices_teste_extra)} via estratificado")
-    print("=" * 55 + "\n")
+    print(f"\n=== DIVISÃO HOLDOUT ESTRATIFICADO (test_size={test_size}, val_size={val_size}, seed={seed}) ===")
+    print(f"Total:     {total} amostras")
+    print(f"Treino:    {len(treino_x)} amostras ({round(len(treino_x)/total*100, 1)}%)")
+    print(f"Validação: {len(val_x)} amostras ({round(len(val_x)/total*100, 1)}%)")
+    print(f"Teste:     {len(teste_x)} amostras ({round(len(teste_x)/total*100, 1)}%)")
+    print(f" Teste = 130 fixos (finais) + {len(indices_teste_extra)} via estratificado")
+    print(f" Validação = {val_size:.0%} do treino, estratificada por letra")
+    print("=" * 70 + "\n")
 
-    return treino_x, treino_y, rotulos_treino, teste_x, teste_y, rotulos_teste
+    return (treino_x, treino_y, rotulos_treino,
+            val_x, val_y, rotulos_val,
+            teste_x, teste_y, rotulos_teste)
 
 def main():
 
@@ -85,27 +115,23 @@ def main():
 
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
+
     mlp = MLP(
         120,
-        90,
+        50,
         26,
-        epocas=100,
-        taxa_de_aprendizado=0.7,
-        limiar_erro=0.02
+        epocas=250,
+        taxa_de_aprendizado=0.3,
+        limiar_erro=None,   # parada agora é por validação (paciência), não por limiar de treino
+        paciencia=25       # para se o erro de validação não melhorar por 10 épocas
     )
-    # mlp = MLP(
-    #     120,
-    #     150,
-    #     26,
-    #     epocas=200,
-    #     taxa_de_aprendizado=0.5,
-    #     limiar_erro=0.02
-    # )
+
+
     colunas_letras = y[0]
     valor_esperado_df = y[[0]]
 
     letras, dict_conversao = criar_dict(colunas_letras)
-    
+
     rotulos = np.array([dict_conversao[letra] for letra in colunas_letras])
 
     #X_np = x.values
@@ -113,22 +139,15 @@ def main():
     x=x.drop(columns={120})
     # print(x.iloc[:, 119])
 
-    treino_x, treino_y, rotulos_treino, teste_x, teste_y, rotulos_teste = holdout_estratificado(x, valor_esperado_df,
-                                                                                           rotulos,
-                                                                                           colunas_letras,
-                                                                                           test_size=0.3,
-                                                                                           seed=42)
-    # UTILIZANDO APENAS OS 130 DADOS FINAIS NO TREINAMENTO
-    # treino_x = x.iloc[:-130]
-    # treino_y = valor_esperado_df.iloc[:-130]
-    # rotulos_treino = rotulos[:-130]
-    #
-    # teste_x = x.iloc[-130:]
-    # teste_y = valor_esperado_df.iloc[-130:]
-    # rotulos_teste = rotulos[-130:]
-    #####################################################
+    (treino_x, treino_y, rotulos_treino,
+     val_x, val_y, rotulos_val,
+     teste_x, teste_y, rotulos_teste) = holdout_estratificado(
+        x, valor_esperado_df, rotulos, colunas_letras,
+        test_size=0.3, val_size=0.2, seed=42
+    )
 
-    mlp.fit(treino_x, rotulos_treino, limiar_erro=0.02)
+    # Treina passando o conjunto de validação -> ativa a parada antecipada
+    mlp.fit(treino_x, rotulos_treino, val_dados=val_x, val_rotulos=rotulos_val)
     resultados = mlp.teste(teste_x, rotulos_teste, letras, teste_y)
 
     # Gera e exibe a matriz de confusão

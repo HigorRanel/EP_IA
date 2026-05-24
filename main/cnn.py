@@ -7,3 +7,379 @@ Nomes e Nº USP:
 5. Luiz Vicente Neto - NUSP: 14593054
 """
 
+import numpy as np
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+
+from sklearn.metrics import confusion_matrix
+
+from loggers.logger_cnn import LoggerCNN
+from loggers.writer_cnn import WriterCNN
+from descritores import extrair_hog_lbp
+
+
+# Nomes das 10 classes do Fashion MNIST (índice = rótulo numérico)
+CLASSES_FASHION = [
+    "Camiseta",   # 0 — T-shirt/top
+    "Calça",      # 1 — Trouser
+    "Pullover",   # 2
+    "Vestido",    # 3 — Dress
+    "Casaco",     # 4 — Coat
+    "Sandália",   # 5 — Sandal
+    "Camisa",     # 6 — Shirt
+    "Tênis",      # 7 — Sneaker
+    "Bolsa",      # 8 — Bag
+    "Bota",       # 9 — Ankle boot
+]
+
+# Classes usadas na tarefa binária: Camiseta (0) vs Calça (1)
+CLASSES_BINARIAS = {0: "Camiseta", 1: "Calça"}
+
+
+class CNN:
+    """
+    Contém o processo completo da CNN:
+      1. Construção do modelo (build)
+      2. Treinamento (fit)
+      3. Teste e métricas (teste)
+      4. Escrita de resultados e pesos (via WriterCNN)
+      5. Log de console (via LoggerCNN + barra de progresso nativa do Keras)
+    """
+
+    def __init__(
+        self,
+        tarefa: str = 'multiclasse',
+        modo_dados: str = 'bruto',
+        epocas: int = 15,
+        batch_size: int = 64,
+        taxa_aprendizado: float = 0.001,
+        diretorio_saida: str = "../Saidas"
+    ):
+        """
+        Args:
+            tarefa:           'multiclasse' ou 'binaria'.
+            modo_dados:       'bruto' (Conv2D) ou 'hog_lbp' (Dense com descritores).
+            epocas:           número de épocas de treinamento.
+            batch_size:       tamanho do mini-batch.
+            taxa_aprendizado: taxa inicial do otimizador Adam.
+            diretorio_saida:  pasta raiz para os arquivos de saída.
+        """
+        assert tarefa in ('multiclasse', 'binaria'), "tarefa deve ser 'multiclasse' ou 'binaria'"
+        assert modo_dados in ('bruto', 'hog_lbp'), "modo_dados deve ser 'bruto' ou 'hog_lbp'"
+
+        self.tarefa = tarefa
+        self.modo_dados = modo_dados
+        self.epocas = epocas
+        self.batch_size = batch_size
+        self.taxa_aprendizado = taxa_aprendizado
+
+        # Número de neurônios de saída e função de ativação dependem da tarefa
+        if tarefa == 'multiclasse':
+            self.n_saida = 10
+            self.ativacao_saida = 'softmax'
+            self.funcao_perda = 'sparse_categorical_crossentropy'
+            self.nomes_classes = CLASSES_FASHION
+        else:
+            # Binária: Camiseta (0) vs Calça (1) — saída escalar com sigmoid
+            self.n_saida = 1
+            self.ativacao_saida = 'sigmoid'
+            self.funcao_perda = 'binary_crossentropy'
+            self.nomes_classes = list(CLASSES_BINARIAS.values())
+
+        self.model = None
+        self.logger = LoggerCNN()
+        self.writer = WriterCNN(diretorio_saida=diretorio_saida)
+
+        # Configurações para log e persistência
+        config = {
+            "Épocas":              self.epocas,
+            "Batch size":          self.batch_size,
+            "Taxa de aprendizado": self.taxa_aprendizado,
+            "Otimizador":          "Adam",
+            "Função de perda":     self.funcao_perda,
+            "Ativação saída":      self.ativacao_saida,
+            "Nº classes":          self.n_saida if self.n_saida > 1 else 2,
+            "Classes":             str(self.nomes_classes),
+        }
+
+        # Log no console e escrita em arquivo
+        self.logger.log_configuracoes_cnn(self.tarefa, self.modo_dados, config)
+        self.writer.write_hiperparametros_cnn(
+            tarefa=self.tarefa,
+            modo_dados=self.modo_dados,
+            config=config
+        )
+
+    # ------------------------------------------------------------------
+    # CONSTRUÇÃO DO MODELO
+    # ------------------------------------------------------------------
+
+    def _build_cnn_bruta(self, input_shape):
+        """
+        Constrói a CNN para dados brutos (imagens 28x28x1).
+
+        Camadas convolucionais:
+          - Conv2D com kernel 3x3: equilibra campo receptivo e custo
+            computacional; ReLU para não-linearidade.
+          - MaxPooling 2x2: reduz altura e largura pela metade.
+
+        Camadas densas:
+          - Flatten: transforma o tensor 3D em vetor 1D.
+          - Dense(256) e Dense(128): capacidade suficiente para 10 classes.
+        """
+        modelo = keras.Sequential(name=f"CNN_{self.tarefa}_bruto")
+
+        # --- Bloco convolucional 1 ---
+        # 32 filtros: detecta características simples (bordas, texturas básicas)
+        modelo.add(layers.Conv2D(32, kernel_size=(3, 3), activation='relu',
+                                 input_shape=input_shape, padding='same',
+                                 name='conv1'))
+        # MaxPooling reduz 28x28 → 14x14
+        modelo.add(layers.MaxPooling2D(pool_size=(2, 2), name='pool1'))
+
+        # --- Bloco convolucional 2 ---
+        # 64 filtros: detecta padrões mais complexos (contornos, partes de objetos)
+        modelo.add(layers.Conv2D(64, kernel_size=(3, 3), activation='relu',
+                                 padding='same', name='conv2'))
+        # MaxPooling reduz 14x14 → 7x7
+        modelo.add(layers.MaxPooling2D(pool_size=(2, 2), name='pool2'))
+
+        # --- Bloco convolucional 3 ---
+        # 128 filtros: características de alto nível (formas globais das roupas)
+        # Sem pooling: manter resolução 7x7 para não perder informação
+        modelo.add(layers.Conv2D(128, kernel_size=(3, 3), activation='relu',
+                                 padding='same', name='conv3'))
+
+        # --- Camadas densas ---
+        modelo.add(layers.Flatten(name='flatten'))
+        modelo.add(layers.Dense(256, activation='relu', name='dense1'))
+        modelo.add(layers.Dense(128, activation='relu', name='dense2'))
+
+        # --- Camada de saída ---
+        modelo.add(layers.Dense(self.n_saida, activation=self.ativacao_saida, name='saida'))
+
+        return modelo
+
+    def _build_dnn_descritores(self, input_dim: int):
+        """
+        Constrói uma DNN (rede totalmente conectada) para vetores HOG+LBP.
+
+        Como os descritores já são representações compactas das imagens,
+        não são necessárias camadas convolucionais.
+
+        Args:
+            input_dim: dimensão do vetor de entrada (D_hog + D_lbp).
+        """
+        modelo = keras.Sequential(name=f"DNN_{self.tarefa}_hog_lbp")
+
+        modelo.add(layers.Input(shape=(input_dim,), name='entrada'))
+        modelo.add(layers.Dense(256, activation='relu', name='dense1'))
+        modelo.add(layers.Dense(128, activation='relu', name='dense2'))
+        modelo.add(layers.Dense(64, activation='relu', name='dense3'))
+        modelo.add(layers.Dense(self.n_saida, activation=self.ativacao_saida, name='saida'))
+
+        return modelo
+
+    def build(self, input_shape_ou_dim):
+        """
+        Constrói e compila o modelo conforme o modo de dados e a tarefa.
+        """
+        if self.modo_dados == 'bruto':
+            self.model = self._build_cnn_bruta(input_shape=input_shape_ou_dim)
+        else:
+            self.model = self._build_dnn_descritores(input_dim=input_shape_ou_dim)
+
+        # Adam: otimizador adaptativo padrão para CNNs
+        otimizador = keras.optimizers.Adam(learning_rate=self.taxa_aprendizado)
+
+        self.model.compile(
+            optimizer=otimizador,
+            loss=self.funcao_perda,
+            metrics=['accuracy']
+        )
+
+        self.model.summary()
+
+    # ------------------------------------------------------------------
+    # TREINAMENTO
+    # ------------------------------------------------------------------
+
+    def fit(self, X_treino, y_treino, X_val=None, y_val=None):
+        """
+        Treina o modelo usando o fluxo nativo do Keras.
+
+        Em vez de um callback manual que reimplementa o log de época, deixamos
+        a barra de progresso do Keras (verbose=1) cuidar do feedback de console
+        e usamos callbacks nativos para persistência:
+          - CSVLogger:       grava o histórico por época durante o treino.
+          - ModelCheckpoint: salva os melhores pesos (etapa "finais").
+          - EarlyStopping:   interrompe e restaura os melhores pesos.
+
+        Os 7 arquivos de saída continuam idênticos: o WriterCNN apenas
+        converte/normaliza o que o Keras gerou nativamente.
+
+        Args:
+            X_treino: array de entrada de treinamento.
+            y_treino: array de rótulos de treinamento.
+            X_val:    array de entrada de validação (opcional).
+            y_val:    array de rótulos de validação (opcional).
+
+        Returns:
+            Objeto History do Keras.
+        """
+        n_val = len(X_val) if X_val is not None else int(len(X_treino) * 0.2)
+        self.logger.log_inicio_treinamento(
+            self.tarefa, self.modo_dados,
+            n_treino=len(X_treino) - n_val,
+            n_val=n_val,
+            epocas=self.epocas
+        )
+
+        # Salva pesos ANTES do treinamento (inicializados aleatoriamente)
+        self.writer.write_pesos_cnn(self.model, etapa="iniciais", tarefa=self.tarefa)
+
+        dados_val = (X_val, y_val) if X_val is not None and y_val is not None else None
+        monitor = 'val_loss' if dados_val or True else 'loss'  # há sempre validação (split ou explícita)
+
+        # Caminhos nativos para os callbacks. O CSVLogger e o ModelCheckpoint
+        # escrevem diretamente nestes arquivos; o WriterCNN apenas os ajusta.
+        caminho_csv_nativo = self.writer.caminho_historico_nativo(self.tarefa)
+        caminho_h5_finais = self.writer.caminho_pesos_h5(etapa="finais", tarefa=self.tarefa)
+
+        callbacks = [
+            keras.callbacks.CSVLogger(caminho_csv_nativo),
+            keras.callbacks.ModelCheckpoint(
+                filepath=caminho_h5_finais,
+                save_weights_only=True,
+                save_best_only=True,
+                monitor=monitor,
+                verbose=0
+            ),
+            keras.callbacks.EarlyStopping(
+                monitor=monitor,
+                patience=5,
+                restore_best_weights=True,
+                verbose=1  # o próprio Keras avisa a parada antecipada
+            ),
+        ]
+
+        history = self.model.fit(
+            X_treino, y_treino,
+            epochs=self.epocas,
+            batch_size=self.batch_size,
+            validation_data=dados_val,
+            validation_split=0.2 if dados_val is None else 0.0,
+            callbacks=callbacks,
+            verbose=1  # barra de progresso nativa do Keras
+        )
+
+        # Resumo textual dos pesos finais (.txt) — o Keras só gera o .h5.
+        # restore_best_weights=True garante que self.model está no melhor ponto.
+        self.writer.write_resumo_pesos_cnn(self.model, etapa="finais", tarefa=self.tarefa)
+
+        # Converte o CSV nativo (epoch 0-based) para o formato exigido (Epoca 1-based)
+        self.writer.finalizar_historico_cnn(caminho_csv_nativo, tarefa=self.tarefa)
+
+        return history
+
+    # ------------------------------------------------------------------
+    # TESTE E MÉTRICAS
+    # ------------------------------------------------------------------
+
+    def teste(self, X_teste, y_teste):
+        """
+        Avalia o modelo no conjunto de teste e salva todos os artefatos.
+
+        O feedback de console usa model.evaluate (barra nativa do Keras);
+        as predições por amostra usam model.predict apenas para alimentar
+        os CSVs de saída e a matriz de confusão.
+
+        Para a tarefa binária, a saída da sigmoid é um escalar em [0,1]:
+          - >= 0.5 → classe 1 (Calça)
+          - <  0.5 → classe 0 (Camiseta)
+        Para a tarefa multiclasse, argmax do vetor softmax determina a classe.
+
+        Args:
+            X_teste: array de entrada de teste.
+            y_teste: array de rótulos verdadeiros (inteiros).
+
+        Returns:
+            dict com 'acuracia', 'matriz_confusao', 'y_pred'.
+        """
+        self.logger.log_inicio_teste_cnn(self.tarefa, self.modo_dados, len(X_teste))
+
+        # Avaliação nativa do Keras (barra de progresso + loss/acc agregados)
+        loss, acc_keras = self.model.evaluate(X_teste, y_teste, verbose=1)
+
+        # Probabilidades brutas para gerar os CSVs por amostra
+        y_proba = self.model.predict(X_teste, verbose=1)
+
+        # Converte probabilidades em índices de classe
+        if self.tarefa == 'binaria':
+            y_proba_flat = y_proba.flatten()
+            y_pred = (y_proba_flat >= 0.5).astype(int)
+            y_proba_para_csv = y_proba_flat
+        else:
+            y_pred = np.argmax(y_proba, axis=1)
+            y_proba_para_csv = y_proba
+
+        # Acurácia a partir das predições (consistente com os CSVs)
+        acertos = int(np.sum(y_pred == y_teste))
+        total = len(y_teste)
+
+        self.logger.log_acuracia_final(acertos, total, self.tarefa, self.modo_dados)
+
+        # Matriz de confusão via sklearn (uma linha, em vez do loop manual).
+        # labels= garante a ordem e o tamanho corretos mesmo se faltar classe.
+        matriz = confusion_matrix(
+            y_teste, y_pred,
+            labels=list(range(len(self.nomes_classes)))
+        ).tolist()
+
+        self._print_matriz_confusao(matriz)
+
+        # Persiste todos os artefatos de teste (mesmos arquivos de sempre)
+        self.writer.write_saidas_teste_cnn(
+            y_true=y_teste,
+            y_pred=y_pred,
+            y_pred_proba=y_proba_para_csv,
+            nomes_classes=self.nomes_classes,
+            tarefa=self.tarefa
+        )
+        self.writer.write_matriz_confusao_cnn(matriz, self.nomes_classes, tarefa=self.tarefa)
+        self.writer.write_acuracia_cnn(acertos, total, tarefa=self.tarefa)
+
+        return {
+            'acuracia': acertos / total,
+            'matriz_confusao': matriz,
+            'y_pred': y_pred
+        }
+
+    def _print_matriz_confusao(self, matriz):
+        """
+        Imprime a matriz de confusão no console.
+        Reutiliza traco_grosso e traco_fino herdados pelo LoggerCNN.
+        """
+        n = len(self.nomes_classes)
+        largura = max(len(c) for c in self.nomes_classes) + 2
+
+        print(f"\n{self.logger.traco_grosso}")
+        print(f"MATRIZ DE CONFUSÃO — {self.tarefa.upper()}".center(60))
+        print(self.logger.traco_grosso)
+
+        cabecalho = " " * (largura + 3) + "".join(c[:4].center(6) for c in self.nomes_classes)
+        print(cabecalho)
+        print("-" * (6 * n + largura + 3))
+
+        for i in range(n):
+            linha = (self.nomes_classes[i][:largura]).ljust(largura) + " | "
+            linha += "".join(str(matriz[i][j]).center(6) for j in range(n))
+            print(linha)
+
+        print("-" * 60)

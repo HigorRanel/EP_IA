@@ -39,7 +39,6 @@ class Writer:
             return str(np.round(np.array(dado, dtype=float), 6).tolist())
         return str(round(dado, 6) if isinstance(dado, float) else dado)
 
-
     # ==========================================
     # ARQUIVO 1: HIPERPARÂMETROS
     # ==========================================
@@ -71,13 +70,27 @@ class Writer:
     # ==========================================
     # ARQUIVO 4: ERROS DO TREINAMENTO
     # ==========================================
-    def write_erros(self, erros_por_epoca, erros_por_iteracao):
+    def write_erros(self, erros_por_epoca, erros_por_iteracao, erros_val_por_epoca=None):
+        """
+        Grava os erros do treinamento.
+        """
+        tem_val = erros_val_por_epoca is not None and len(erros_val_por_epoca) > 0
+
         caminho_epoca = self._obter_caminho("4_erros_treinamento_epoca.csv")
         with open(caminho_epoca, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(["Epoca", "Erro_Medio_da_Epoca"])
+            if tem_val:
+                writer.writerow(["Epoca", "Erro_Treino", "Erro_Validacao"])
+            else:
+                writer.writerow(["Epoca", "Erro_Treino"])
             for epoca, erro in enumerate(erros_por_epoca):
-                writer.writerow([epoca + 1, erro])
+                if tem_val:
+                    # Protege contra tamanhos diferentes (a parada antecipada
+                    # interrompe ambas as listas na mesma época, mas por segurança).
+                    val = erros_val_por_epoca[epoca] if epoca < len(erros_val_por_epoca) else ""
+                    writer.writerow([epoca + 1, erro, val])
+                else:
+                    writer.writerow([epoca + 1, erro])
 
         caminho_iter = self._obter_caminho("4_erros_treinamento_iteracao.csv")
         with open(caminho_iter, 'w', newline='', encoding='utf-8') as f:

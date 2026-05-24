@@ -18,6 +18,7 @@ from utils import *
 import ativacoes as atv
 from loggers.logger import Logger
 from loggers.writer import Writer
+import plots
 
 
 class MLP:
@@ -43,7 +44,7 @@ class MLP:
 
     def __init__(self, comprimento_entrada: int, comprimento_oculta: int, comprimento_saida: int, epocas: int,
                  funcao_de_ativacao=atv.sigmoid, taxa_de_aprendizado: float = 0.8,
-                 limiar_erro: float = 0.01):
+                 limiar_erro: float = 0.01, verbose: bool = False, paciencia: int = 10):
 
         # Inicializando os hiperparâmetros do modelo
         self.comprimento_entrada = comprimento_entrada
@@ -53,6 +54,10 @@ class MLP:
         self.funcao_de_ativacao = funcao_de_ativacao
         self.taxa_de_aprendizado = taxa_de_aprendizado
         self.limiar_erro = limiar_erro
+        self.verbose = verbose
+        # Paciência da parada antecipada: nº de épocas sem melhora no erro de
+        # validação toleradas antes de interromper o treinamento.
+        self.paciencia = paciencia
 
         # Inicializando as estruturas de dados dos pesos
 
@@ -69,7 +74,8 @@ class MLP:
         self.b0 = gera_matriz_bias(self.comprimento_saida)
 
         # Salva os erros por época
-        self.erros = []
+        self.erros = []        # EQM de treino por época
+        self.erros_val = []    # EQM de validação por época (vazio se não houver validação)
 
         #
         self.y = []  # saída dos neurônios da camada de saída
@@ -81,7 +87,7 @@ class MLP:
         self.z_in = []  # entrada dos neurônios da camada oculta
 
         # Inicializa logger e writer
-        self.logger = Logger()
+        self.logger = Logger(verbose=self.verbose)
         self.writer = Writer()
 
         # Loga e salva configurações iniciais
@@ -99,7 +105,26 @@ class MLP:
         # self._salvar_pesos("pesos_iniciais.txt", self.V, self.v0, self.W, self.w0)
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="iniciais")
 
-    def fit(self, dados, rotulos, limiar_erro=0.01):
+    def fit(self, dados, rotulos, val_dados=None, val_rotulos=None):
+        """
+        Treina a rede com Backpropagation (Gradiente Descendente).
+
+        Se val_dados/val_rotulos forem fornecidos, ao final de cada época o
+        EQM de validação é calculado e a PARADA ANTECIPADA é aplicada: o
+        treinamento é interrompido quando o erro de validação não melhora por
+        `self.paciencia` épocas consecutivas. Não há restauração de pesos — os
+        pesos finais são os da última época treinada.
+
+        Args:
+            dados, rotulos:         conjunto de TREINO.
+            val_dados, val_rotulos: conjunto de VALIDAÇÃO (opcional).
+        """
+        usar_validacao = val_dados is not None and val_rotulos is not None
+
+        # Estado da parada antecipada
+        melhor_erro_val = float('inf')
+        epocas_sem_melhora = 0
+
         for epoca in range(self.epocas):
 
             # O embaralhamento por época é necessário pois o holdout estratificado agrupa as amostras
@@ -113,12 +138,12 @@ class MLP:
 
             self.logger.log_inicio_epoca(epoca, self.epocas)
             erros_epoca = []
-            for i in range(dados_epoca.shape[0]):
+            n_amostras = dados_epoca.shape[0]
+            for i in range(n_amostras):
                 self.logger.log_iteracao_dado(i)
                 dado = dados_epoca.iloc[i]
                 self.forward(dado)
                 resp = rotulos_epoca[i]
-                # erro = np.array(self.y)-np.array(resp)
                 erro = self.backpropagate(dado, resp, self.z_in, self.z, self.y_in, self.y)
                 erros_epoca.append(erro)
                 self.erros_iteracao.append({
@@ -126,22 +151,70 @@ class MLP:
                     'iteracao': i+1,
                     'erro': erro
                 })
+                # Barra de progresso estilo Keras (silenciada se verbose=True)
+                erro_parcial = sum(erros_epoca) / len(erros_epoca)
+                self.logger.barra_progresso_epoca(
+                    epoca, self.epocas, i + 1, n_amostras, erro_medio=erro_parcial
+                )
 
+            # EQM de treino da época
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
-            print(f"Erro médio da época: {epoca + 1}: {round(erro_medio, 6)}")
 
-            # Check do critério de parada
-            if limiar_erro is not None and self.check_limiar_de_erro(erro_medio, limiar_erro):
-                print(f"\n Parada identificada antecipada na época: {epoca+1}: erro {round(erro_medio, 6)}"
-                      f"<= limiar: {limiar_erro}")
+            # ----- PARADA ANTECIPADA POR VALIDAÇÃO -----
+            if usar_validacao:
+                erro_val = self._eqm_conjunto(val_dados, val_rotulos)
+                self.erros_val.append(erro_val)
+                self.logger.log_erro_validacao(epoca + 1, erro_medio, erro_val)
+
+                # Houve melhora no erro de validação?
+                if erro_val < melhor_erro_val:
+                    melhor_erro_val = erro_val
+                    epocas_sem_melhora = 0
+                else:
+                    epocas_sem_melhora += 1
+
+                # Interrompe se a paciência foi excedida
+                if epocas_sem_melhora >= self.paciencia:
+                    self.logger.log_parada_antecipada_val(epoca + 1, erro_val, self.paciencia)
+                    break
+
+            # ----- Critério secundário: limiar de erro de TREINO (opcional) -----
+            elif self.limiar_erro is not None and self.check_limiar_de_erro(erro_medio, self.limiar_erro):
+                self.logger.log_parada_antecipada(epoca + 1, erro_medio, self.limiar_erro)
                 break
-
-
 
         # Salva pesos finais e erros ao fim do treinamento
         self.writer.write_pesos(self.W, self.w0, self.B, self.b0, etapa="finais")
-        self.writer.write_erros(self.erros, self.erros_iteracao)
+        self.writer.write_erros(self.erros, self.erros_iteracao, self.erros_val)
+
+        # Gráfico de comportamento do erro (treino vs. validação) por época
+        caminho_grafico = self.writer._obter_caminho("8_curva_erro.png")
+        plots.plotar_curva_erro(
+            self.erros,
+            self.erros_val if self.erros_val else None,
+            caminho_saida=caminho_grafico
+        )
+
+    def _eqm_conjunto(self, dados, rotulos):
+        """
+        Calcula o Erro Quadrático Médio (EQM) sobre um conjunto inteiro,
+        executando apenas o forward (sem ajuste de pesos). Usado para medir
+        o erro de validação ao final de cada época.
+
+        EQM = (1/N) * Σ_amostras [ (1/m) * Σ_k (t_k - y_k)^2 ]
+
+        onde N é o nº de amostras e m o nº de neurônios de saída.
+        """
+        m = self.comprimento_saida
+        soma = 0.0
+        n = dados.shape[0]
+        for i in range(n):
+            self.forward(dados.iloc[i])
+            t = np.array(rotulos[i])
+            y = np.array(self.y)
+            soma += np.sum((t[:m] - y[:m]) ** 2) / m
+        return soma / n if n > 0 else 0.0
 
     def forward(self, entrada):
         """
@@ -177,6 +250,7 @@ class MLP:
         self.logger.log_camada_saida(self.B, self.b0, self.y_in, self.y)
 
     def teste(self, dados, rotulos, letras, valor_esperado):
+        self.logger.log_inicio_teste(dados.shape[0])
         count = 0
         resultados = []
         for i in range(dados.shape[0]):
@@ -206,8 +280,8 @@ class MLP:
                 'erro': erro_total
             })
 
-        print(f'-----------------------------------ACURACIA-----------------------------------')
-        print(f'Acurácia= {count}/{dados.shape[0]} = {count / dados.shape[0]}')
+        self.logger.log_resumo_teste(resultados, letras)
+        self.logger.log_acuracia_final(count, dados.shape[0])
 
         self.writer.write_saidas_teste(resultados)
         self.writer.write_acuracia(count, dados.shape[0])
@@ -289,33 +363,13 @@ class MLP:
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
         self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
 
-        # erro quadrático: E(0) = 0.5 * sum_k(e_^2)
-        erro = np.sum((t[:self.comprimento_saida] - y[:self.comprimento_saida]) ** 2)
-        return 0.5 * erro
-
-    def print_console(self, dado):
-        if isinstance(dado, dict):
-            for chave, valor in dado.items():
-                print(f"{chave}: {valor}")
-
-        elif isinstance(dado, list):
-            for linha in dado:
-                print(" | ".join(str(item) for item in linha))
-
-        elif isinstance(dado, str):
-            print(dado)
-
-    def print_arquivo(self, nome_arquivo, dado):
-        with open(nome_arquivo, 'w') as filehandler:
-            if isinstance(dado, dict):
-                for chave, valor in dado.items():
-                    filehandler.write(f"{chave}: {valor}")
-
-            # a primeira linha seria um título para a tabela
-            elif isinstance(dado, list):
-                filehandler.write(dado[0])
-                for linha in dado[1:]:
-                    filehandler.write(" | ".join(str(item) for item in linha))
+        # Erro Quadrático Médio (EQM) DESTA amostra: média do quadrado do erro
+        # sobre os m neurônios de saída -> (1/m) * Σ_k (t_k - y_k)^2.
+        # OBS: o fator não afeta o aprendizado, pois o gradiente usa (t-y) direto;
+        # ele apenas alinha o valor reportado ao termo "erro quadrático médio".
+        m = self.comprimento_saida
+        erro_eqm = np.sum((t[:m] - y[:m]) ** 2) / m
+        return erro_eqm
 
     def check_limiar_de_erro(self, erro_medio, limiar):
         """
@@ -356,4 +410,9 @@ class MLP:
 
         print("-" * 60)
         self.writer.write_matriz_confusao(matriz, letras)
+
+        # Heatmap da matriz de confusão para os slides
+        caminho_mc = self.writer._obter_caminho("9_matriz_confusao.png")
+        plots.plotar_matriz_confusao(matriz, letras, caminho_saida=caminho_mc)
+
         return matriz
