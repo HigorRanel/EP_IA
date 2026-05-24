@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from typing import Any
 
-#Caracteres Completo
+# Caracteres Completo
 def ler_arquivo_csv(path_arquivo) -> Any:
     df = pd.read_csv(path_arquivo, header=None)
     return df

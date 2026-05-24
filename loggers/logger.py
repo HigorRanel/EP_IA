@@ -113,10 +113,25 @@ class Logger:
             sys.stdout.flush()
             self._epoca_inicio = None
 
+    def log_erro_validacao(self, epoca, erro_treino, erro_val):
+        """
+        Ao fim de uma época, mostra o EQM de treino e de validação lado a lado.
+        Sempre visível (independe de verbose), pois é o sinal central da
+        parada antecipada e do gráfico treino vs. validação.
+        """
+        print(f"{Colors.CYAN}   Época {epoca}: "
+              f"EQM_treino={erro_treino:.6f}  |  EQM_val={erro_val:.6f}{Colors.RESET}")
+
     def log_parada_antecipada(self, epoca, erro_medio, limiar):
         print(f"{Colors.BOLD}{Colors.GREEN}"
               f"Parada antecipada na época {epoca}: "
-              f"erro {round(erro_medio, 6)} ≤ limiar {limiar}{Colors.RESET}")
+              f"erro {round(erro_medio, 6)} <= limiar {limiar}{Colors.RESET}")
+
+    def log_parada_antecipada_val(self, epoca, erro_val, paciencia):
+        """Avisa que a parada antecipada por validação foi acionada."""
+        print(f"\n{Colors.BOLD}{Colors.GREEN}"
+              f"Parada antecipada na época {epoca}: erro de validação não "
+              f"melhora há {paciencia} épocas (EQM_val={round(erro_val, 6)}).{Colors.RESET}")
 
     # ==================================================================
     # RESUMO DE TESTE (usado quando verbose=False)
@@ -135,6 +150,73 @@ class Logger:
         print("RESULTADO FINAL ".center(60, "="))
         print(f"Acurácia: {count}/{total} = {pct}%")
         print(f"{self.traco_grosso}{Colors.RESET}\n")
+
+    def log_resumo_teste(self, resultados, letras):
+        """
+        Resumo legível dos resultados de teste, SEMPRE visível (independe de
+        verbose). Mostra:
+          - acurácia por classe (acertos/total de cada letra);
+          - a lista compacta dos erros cometidos (esperado -> previsto).
+
+        Pensado para a apresentação no vídeo: informativo e cabe na tela, sem
+        o despejo exaustivo por amostra do modo verbose.
+
+        Args:
+            resultados: lista de dicts {esperado, previsto, ...}.
+            letras:     lista de rótulos das classes.
+        """
+        # Contagens por classe
+        total_por_classe = {l: 0 for l in letras}
+        acertos_por_classe = {l: 0 for l in letras}
+        erros = []  # (esperado, previsto)
+
+        for res in resultados:
+            esp = res['esperado']
+            prev = res['previsto']
+            if esp in total_por_classe:
+                total_por_classe[esp] += 1
+                if str(esp).casefold() == str(prev).casefold():
+                    acertos_por_classe[esp] += 1
+                else:
+                    erros.append((esp, prev))
+
+        # --- Acurácia por classe ---
+        print(f"\n{Colors.BOLD}{Colors.BLUE}{self.traco_fino}")
+        print(" ACURÁCIA POR CLASSE ".center(50, "-"))
+        print(f"{self.traco_fino}{Colors.RESET}")
+        for l in letras:
+            tot = total_por_classe[l]
+            if tot == 0:
+                continue  # classe ausente no conjunto de teste
+            ac = acertos_por_classe[l]
+            pct = ac / tot * 100
+            # Cor: verde se 100%, vermelho se errou alguma
+            cor = Colors.GREEN if ac == tot else Colors.RED
+            barra = "█" * int(pct / 10)  # mini-barra visual (0 a 10 blocos)
+            print(f"  {l}: {cor}{ac:>3}/{tot:<3} ({pct:5.1f}%){Colors.RESET} {barra}")
+
+        # --- Lista de erros (agrupados e limitados) ---
+        print(f"\n{Colors.BOLD}{Colors.RED}{self.traco_fino}")
+        print(f" ERROS COMETIDOS: {len(erros)} ".center(50, "-"))
+        print(f"{self.traco_fino}{Colors.RESET}")
+        if not erros:
+            print(f"  {Colors.GREEN}Nenhum erro — todas as amostras corretas!{Colors.RESET}")
+        else:
+            # Agrupa erros idênticos (esperado, previsto) e conta ocorrências
+            from collections import Counter
+            contagem = Counter(erros)
+            # Ordena do par mais frequente para o menos frequente
+            pares_ordenados = contagem.most_common()
+
+            max_linhas = 30  # evita encher a tela em conjuntos grandes
+            for (esp, prev), n in pares_ordenados[:max_linhas]:
+                vezes = f" ({n}x)" if n > 1 else ""
+                print(f"  Esperado {Colors.BOLD}{esp}{Colors.RESET} "
+                      f"-> previsto {Colors.RED}{prev}{Colors.RESET}{vezes}")
+            restantes = len(pares_ordenados) - max_linhas
+            if restantes > 0:
+                print(f"  ... e mais {restantes} tipo(s) de erro "
+                      f"(ver arquivo 5_saidas_teste.csv para a lista completa).")
 
     # ==================================================================
     # LOGS DETALHADOS (só quando verbose=True)
