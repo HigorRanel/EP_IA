@@ -5,6 +5,8 @@ Nomes e Nº USP:
 3. Higor Ranel Viani Lopes - NUSP: 15552946
 4. João de Melo Fantini - NUSP: 15462550
 5. Luiz Vicente Neto - NUSP: 14593054
+
+Módulo para criação de arquivos/saídas do projeto
 """
 
 import numpy as np
@@ -16,7 +18,12 @@ from datetime import datetime
 class Writer:
     def __init__(self, diretorio_saida="../Saidas"):
         """
-        Cria uma pasta única para a execução atual dentro de 'Saidas'.
+        Cria uma pasta única para a execução atual dentro de 'Saidas'
+
+        Recebe como parâmetros:
+        1) diretorio_saida: diretório-raiz onde a pasta da execução será criada
+
+        Retorna: None (cria a pasta de saída)
         """
         self.diretorio_saida = diretorio_saida
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -25,11 +32,11 @@ class Writer:
         if not os.path.exists(self.pasta_atual):
             os.makedirs(self.pasta_atual)
 
-    def _obter_caminho(self, nome_arquivo):
+    def obter_caminho(self, nome_arquivo):
         return os.path.join(self.pasta_atual, nome_arquivo)
 
-    def _formatar_completo(self, dado):
-        """Transforma matrizes do Numpy em strings completas, sem omissão (...)"""
+    def formatar_completo(self, dado):
+        """Transforma matrizes do Numpy em strings completas"""
         if hasattr(dado, 'tolist'):
             dado = dado.tolist()
         if isinstance(dado, list):
@@ -39,44 +46,78 @@ class Writer:
             return str(np.round(np.array(dado, dtype=float), 6).tolist())
         return str(round(dado, 6) if isinstance(dado, float) else dado)
 
-    # ==========================================
-    # ARQUIVO 1: HIPERPARÂMETROS
-    # ==========================================
-    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao, epocas, limiar_erro):
-        caminho = self._obter_caminho("1_hiperparametros.txt")
+
+    def write_hiperparametros(self, n_entradas, n_ocultas, n_saidas, taxa_aprendizado, ativacao, epocas):
+        """
+        Escreve os hiperparâmetros em um arquivo chamado
+        '1_hiperparametros_multiclasse.txt':
+            1. Arquitetura: número de neurônios na camada de entrada, oculta e de saída
+            2. Taxa de aprendizado
+            3. Função de ativação
+            4. Número de épocas
+            5. Limiar de erro
+
+        Recebe como parâmetros:
+        1) n_entradas: nº de neurônios da camada de entrada
+        2) n_ocultas: nº de neurônios da camada oculta
+        3) n_saidas: nº de neurônios da camada de saída
+        4) taxa_aprendizado: taxa de aprendizado usada no treino
+        5) ativacao: nome da função de ativação
+        6) epocas: nº de épocas configurado
+
+        Retorna: None (grava o arquivo de hiperparâmetros)
+        """
+        caminho = self.obter_caminho("1_hiperparametros.txt")
         with open(caminho, 'w', encoding='utf-8') as f:
-            f.write("=== HIPERPARAMETROS DA REDE ===\n")
-            f.write(f"Arquitetura:         {n_entradas} (Entrada) -> {n_ocultas} (Oculta) -> {n_saidas} (Saída)\n")
+            f.write("HIPERPARAMETROS DA REDE\n")
+            f.write(f"Arquitetura: {n_entradas} (Entrada): {n_ocultas} (Oculta): {n_saidas} (Saída)\n")
             f.write(f"Taxa de Aprendizado: {taxa_aprendizado}\n")
-            f.write(f"Função de Ativação:  {ativacao}\n")
-            f.write(f"Épocas:              {epocas}\n")
-            f.write(f"Limiar de Erro:      {limiar_erro if limiar_erro is not None else 'inativo'}\n")
+            f.write(f"Função de Ativação: {ativacao}\n")
+            f.write(f"Épocas: {epocas}\n")
 
-    # ==========================================
-    # ARQUIVOS 2 E 3: PESOS INICIAIS E FINAIS
-    # ==========================================
     def write_pesos(self, W, w0, B, b0, etapa="iniciais"):
-        caminho = self._obter_caminho(f"2_pesos_{etapa}.txt" if etapa == "iniciais" else "3_pesos_finais.txt")
-        with open(caminho, 'w', encoding='utf-8') as f:
-            f.write("=== PESOS ENTRADA -> OCULTA (W) ===\n")
-            f.write(self._formatar_completo(W) + "\n\n")
-            f.write("=== BIAS DA CAMADA OCULTA (w0) ===\n")
-            f.write(self._formatar_completo(w0) + "\n\n")
-            f.write("=== PESOS OCULTA -> SAÍDA (B) ===\n")
-            f.write(self._formatar_completo(B) + "\n\n")
-            f.write("=== BIAS DA CAMADA DE SAÍDA (b0) ===\n")
-            f.write(self._formatar_completo(b0) + "\n")
+        """
+        Escreve os pesos de cada camada (entrada, oculta e de saída) na etapa inicial,
+        e também quando terminamos o treinamento
 
-    # ==========================================
-    # ARQUIVO 4: ERROS DO TREINAMENTO
-    # ==========================================
+        Recebe como parâmetros:
+        1) W: matriz de pesos entrada - oculta
+        2) w0: vetor de bias da camada oculta
+        3) B: matriz de pesos oculta - saída
+        4) b0: vetor de bias da camada de saída
+        5) etapa: "iniciais" ou "finais", define o nome do arquivo gerado
+
+        Retorna: None (grava o arquivo de pesos)
+        """
+        caminho = self.obter_caminho(f"2_pesos_{etapa}.txt" if etapa == "iniciais" else "3_pesos_finais.txt")
+        with open(caminho, 'w', encoding='utf-8') as f:
+            f.write("PESOS ENTRADA OCULTA (W)\n")
+            f.write(self.formatar_completo(W) + "\n\n")
+            f.write("BIAS DA CAMADA OCULTA (w0)\n")
+            f.write(self.formatar_completo(w0) + "\n\n")
+            f.write("PESOS OCULTA SAÍDA (B)\n")
+            f.write(self.formatar_completo(B) + "\n\n")
+            f.write("BIAS DA CAMADA DE SAÍDA (b0)\n")
+            f.write(self.formatar_completo(b0) + "\n")
+
     def write_erros(self, erros_por_epoca, erros_por_iteracao, erros_val_por_epoca=None):
         """
-        Grava os erros do treinamento.
+        Escreve o erro de treino e de validação para cada época em um arquivo chamado
+        '4_erros_treinamento_epoca.csv' e também
+        escreve o erro quadrático de cada iteração para
+        todas as épocas em um arquivo chamado '4_erros_treinamento_iteracao.csv'
+
+        Recebe como parâmetros:
+        1) erros_por_epoca: lista com o EQM de treino de cada época
+        2) erros_por_iteracao: lista de dicionários {epoca, iteracao, erro}
+        de cada iteração
+        3) erros_val_por_epoca: lista com o EQM de validação de cada época
+
+        Retorna: None (grava os dois arquivos CSV de erros)
         """
         tem_val = erros_val_por_epoca is not None and len(erros_val_por_epoca) > 0
 
-        caminho_epoca = self._obter_caminho("4_erros_treinamento_epoca.csv")
+        caminho_epoca = self.obter_caminho("4_erros_treinamento_epoca.csv")
         with open(caminho_epoca, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if tem_val:
@@ -86,24 +127,33 @@ class Writer:
             for epoca, erro in enumerate(erros_por_epoca):
                 if tem_val:
                     # Protege contra tamanhos diferentes (a parada antecipada
-                    # interrompe ambas as listas na mesma época, mas por segurança).
+                    # interrompe ambas as listas na mesma época, mas por segurança)
                     val = erros_val_por_epoca[epoca] if epoca < len(erros_val_por_epoca) else ""
                     writer.writerow([epoca + 1, erro, val])
                 else:
                     writer.writerow([epoca + 1, erro])
 
-        caminho_iter = self._obter_caminho("4_erros_treinamento_iteracao.csv")
+        caminho_iter = self.obter_caminho("4_erros_treinamento_iteracao.csv")
         with open(caminho_iter, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Epoca", "Iteracao", "Erro_Quadratico"])
             for entrada in erros_por_iteracao:
                 writer.writerow([entrada['epoca'], entrada['iteracao'], entrada['erro']])
 
-    # ==========================================
-    # ARQUIVO 5: SAÍDAS DO TESTE
-    # ==========================================
     def write_saidas_teste(self, resultados):
-        caminho = self._obter_caminho("5_saidas_teste.csv")
+        """
+        Escreve para cada dado de teste a letra esperada, a letra prevista pelo modelo,
+        se o modelo acertou ou não, o erro total da amostra e também o vetor de saída
+        da rede (array de tamanho 26 que indica o valor de saída de cada
+        neurônio da camada de saída)
+
+        Recebe como parâmetros:
+        1) resultados: lista de dicionários (um por amostra de teste) com esperado,
+        previsto, saida e erro
+
+        Retorna: None (grava o arquivo '5_saidas_teste.csv')
+        """
+        caminho = self.obter_caminho("5_saidas_teste.csv")
         with open(caminho, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Letra_Esperada", "Letra_Prevista", "Acertou", "Erro_Total_Amostra", "Vetor_Saida_Rede"])
@@ -114,14 +164,20 @@ class Writer:
                     res['previsto'],
                     acertou,
                     res['erro'],
-                    self._formatar_completo(res['saida'])
+                    self.formatar_completo(res['saida'])
                 ])
 
-    # ==========================================
-    # ARQUIVO 6: MATRIZ DE CONFUSÃO
-    # ==========================================
     def write_matriz_confusao(self, matriz, letras):
-        caminho = self._obter_caminho("6_matriz_confusao.csv")
+        """
+        Escreve a matriz de confusão em um arquivo chamado '6_matriz_confusão.csv'
+
+        Recebe como parâmetros:
+        1) matriz: matriz de confusão,
+            linha = esperado
+            coluna = previsto
+        2) letras
+        """
+        caminho = self.obter_caminho("6_matriz_confusao.csv")
         with open(caminho, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             # Construção do cabeçalho
@@ -129,12 +185,17 @@ class Writer:
             for i, letra in enumerate(letras):
                 writer.writerow([letra] + matriz[i])
 
-    # ==========================================
-    # ARQUIVO 7: ACURÁCIA
-    # ==========================================
     def write_acuracia(self, count, total):
-        caminho = self._obter_caminho("7_acuracia.txt")
+        """
+        Escreve o número de acertos totais da rede também a sua acurácia em um arquivo chamado
+        '7_acuracia.txt'
+
+        Recebe como parâmetros:
+        1) count: nº de amostras de teste classificadas corretamente
+        2) total: nº total de amostras de teste
+        """
+        caminho = self.obter_caminho("7_acuracia.txt")
         with open(caminho, 'w', encoding='utf-8') as f:
-            f.write("=== ACURÁCIA DO TESTE ===\n")
+            f.write("ACURÁCIA DO TESTE\n")
             f.write(f"Acertos:  {count}/{total}\n")
             f.write(f"Acurácia: {round(count / total * 100, 2)}%\n")
