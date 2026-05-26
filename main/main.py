@@ -14,8 +14,6 @@ um dicionário de mapeamento de letras para seus vetores (representações)
 e uma função de holdout estratificado
 """
 
-import numpy as np
-from utils import ler_arquivo_csv
 from mlp import *
 import sys
 import os
