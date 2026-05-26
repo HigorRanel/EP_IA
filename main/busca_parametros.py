@@ -154,7 +154,9 @@ def buscar_parametros(treino_x, rotulos_treino,
             writer.writerow(linha)
 
     # Identifica a melhor combinação por acurácia (desempate: menor tempo)
-    melhor = max(resultados, key=lambda r: (r['acuracia_teste'], -r['tempo_segundos']))
+    melhor_acuracia = max(r['acuracia_teste'] for r in resultados)
+    candidatos = [r for r in resultados if r['acuracia_teste'] == melhor_acuracia]
+    melhor = min(candidatos, key=lambda r: r['tempo_segundos'])
     print(f"\nBUSCA CONCLUÍDA")
     print(f"CSV salvo em: {caminho_csv}")
     print(f"Melhor combinação: neurônios={melhor['neuronios_ocultos']}, "
@@ -164,15 +166,14 @@ def buscar_parametros(treino_x, rotulos_treino,
 
     return resultados
 
+if __name__ == '__main__':
+    x = ler_arquivo_csv(r'C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\X.txt'); y = ler_arquivo_csv(r"C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\Y_letra.txt")
+    colunas_letras = y[0]; valor_esperado_df = y[[0]]
+    letras, dconv = criar_dict(colunas_letras)
+    rotulos = np.array([dconv[l] for l in colunas_letras])
+    x = x.drop(columns={120})
+    (trx, try_, rtr, vx, vy, rval, tex, tey, rte) = holdout_estratificado(
+        x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, val_size=0.2, seed=42)
 
-#
-# x = ler_arquivo_csv(r'C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\X.txt'); y = ler_arquivo_csv(r"C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\Y_letra.txt")
-# colunas_letras = y[0]; valor_esperado_df = y[[0]]
-# letras, dconv = criar_dict(colunas_letras)
-# rotulos = np.array([dconv[l] for l in colunas_letras])
-# x = x.drop(columns={120})
-# (trx, try_, rtr, vx, vy, rval, tex, tey, rte) = holdout_estratificado(
-#     x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, val_size=0.2, seed=42)
-#
-# buscar_parametros(trx, rtr, vx, rval, tex, rte, letras, tey,
-#                   n_entradas=120, n_saidas=26)
+    buscar_parametros(trx, rtr, vx, rval, tex, rte, letras, tey,
+                      n_entradas=120, n_saidas=26)

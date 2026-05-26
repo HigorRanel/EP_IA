@@ -391,6 +391,12 @@ class MLP:
         6) y: saídas (ativadas) dos neurônios da camada de saída
 
         Retorna: O erro instantâneo E(n) = (1/2) * Σ_k (t_k - y_k)^2 desta amostra
+
+        Adendo: Este backpropagate é VETORIZADO.
+        Em vez de percorrer neurônio a neurônio com laços Python, os termos de
+        erro e as correções de peso são calculados de uma só vez sobre arrays
+        NumPy inteiros. Isso delega a iteração ao código otimizado em C/BLAS do
+        NumPy, ficando bem mais rápido que loops equivalentes em Python puro.
         """
 
         # Converte entradas para arrays NumPy para operações matriciais
