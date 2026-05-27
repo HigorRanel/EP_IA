@@ -9,7 +9,6 @@ Nomes e Nº USP:
 Classe principal do trabalho onde a MLP é implementada
 """
 
-import numpy as np
 import sys
 import os
 
@@ -18,8 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
-from logger import Logger
-from writer import Writer
+from loggers.logger import Logger
+from loggers.writer import Writer
 import plots
 
 
@@ -201,7 +200,7 @@ class MLP:
                 self.logger.log_erro_validacao(epoca + 1, erro_medio, erro_val)
 
                 # Houve melhora no erro de validação?
-                if erro_val <= melhor_erro_val:
+                if erro_val < melhor_erro_val:
                     melhor_erro_val = erro_val
                     epocas_sem_melhora = 0
                 # else:

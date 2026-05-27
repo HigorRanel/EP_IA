@@ -57,7 +57,6 @@ def gera_matriz_bias(num_neur, ini='zero'):
 
     Retorna: Vetor NumPy de zeros com tamanho num_neur
     """
-    limite = np.sqrt(6.0 / (210))
     if ini=='zero':
         return np.zeros(num_neur)
     else:

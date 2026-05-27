@@ -173,8 +173,8 @@ def main():
         epocas=150,
         taxa_de_aprendizado=0.5,
         paciencia=10, # para se o erro de validação não melhorar por X épocas
-        ini_pesos='Xavier', # se = 'Xavier', inicializa os pesos com a inicialização de xavier; caso contrário,
-        ini_bias='aleatorio' #
+        ini_pesos='Xavier',
+        ini_bias='aleatorio'
     )
 
     colunas_letras = y[0]
