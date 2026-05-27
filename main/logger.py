@@ -15,8 +15,6 @@ import sys
 import time
 import numpy as np
 from collections import Counter
-import pandas as pd
-
 
 class Colors:
     """Códigos ANSI para colorir e formatar o terminal"""
@@ -102,12 +100,10 @@ class Logger:
         if erro_medio is not None:
             msg += f" - erro: {erro_medio:.6f}"
 
-        sys.stdout.write(msg)
-        sys.stdout.flush()
+        print(msg, end="", flush=True)
 
         if atual >= total:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+            print()
             self._epoca_inicio = None
 
     def log_erro_validacao(self, epoca, erro_treino, erro_val):
