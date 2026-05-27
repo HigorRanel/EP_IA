@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ativacoes import derivada_sigmoid
 from utils import *
 import ativacoes as atv
-from loggers.logger import Logger
-from loggers.writer import Writer
+from logger import Logger
+from writer import Writer
 import plots
 
 
@@ -195,6 +195,11 @@ class MLP:
                 if erro_val < melhor_erro_val:
                     melhor_erro_val = erro_val
                     epocas_sem_melhora = 0
+                # else:
+                #     self.logger.log_parada_antecipada_val(epoca + 1, erro_val,
+                #                  self.paciencia)
+                #     break
+
                 else:
                     epocas_sem_melhora += 1
 

@@ -172,7 +172,7 @@ def main():
         26,
         epocas=500,
         taxa_de_aprendizado=0.5,
-        paciencia=20 # para se o erro de validação não melhorar por X épocas
+        paciencia=1 # para se o erro de validação não melhorar por X épocas
     )
 
     colunas_letras = y[0]
