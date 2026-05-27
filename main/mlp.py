@@ -46,7 +46,9 @@ class MLP:
                  epocas: int,
                  funcao_de_ativacao=atv.sigmoid,
                  taxa_de_aprendizado: float = 0.3,
-                 verbose: bool = False, paciencia: int = 20):
+                 verbose: bool = False, paciencia: int = 20,
+                 ini_pesos: str = "Xavier",
+                 ini_bias: str = "zero"):
         """
         Inicializa a MLP: guarda os hiperparâmetros, cria as matrizes de pesos e
         bias das camadas oculta e de saída, prepara as estruturas de erro e
@@ -61,7 +63,14 @@ class MLP:
         6) taxa_de_aprendizado: passo α do gradiente descendente (padrão: 0.3)
         7) verbose: se True, imprime detalhes de cada iteração no terminal
         8) paciencia: nº de épocas sem melhora na validação
-        toleradas antes da parada antecipada
+           toleradas antes da parada antecipada
+        9) ini_pesos: seletor do tipo de inicialização de pesos. As opções possíveis são:
+           inicialização de Xavier e inicialização aleatória de acordo com uma distribuição uniforme
+           no intervalo -1, 1
+        10)ini_bias: seletor do tipo de inicialização de bias. As opções possíveis são:
+           todos os valores do bias inicializam com 0 ou os pesos são escolhidos aleatóriamente de
+           acordo com uma distribuição uniforme no intervalo -1, 1
+
 
         Retorna: None (apenas inicializa o objeto)
         """
@@ -81,16 +90,16 @@ class MLP:
         # Inicializando as estruturas de dados dos pesos
 
         # W[i][j]: aqui temos os pesos entre a entrada i e o neurônio j
-        self.W = gera_matriz_pesos(self.comprimento_entrada, self.comprimento_oculta)
+        self.W = gera_matriz_pesos(self.comprimento_entrada, self.comprimento_oculta, ini_pesos)
 
         # w0[j]: bias do neurônio oculto j
-        self.w0 = gera_matriz_bias(self.comprimento_oculta)
+        self.w0 = gera_matriz_bias(self.comprimento_oculta, ini_bias)
 
         # B[j][k]: peso entre neurônio oculto j e saída k
-        self.B = gera_matriz_pesos(self.comprimento_oculta, self.comprimento_saida)
+        self.B = gera_matriz_pesos(self.comprimento_oculta, self.comprimento_saida, ini_pesos)
 
         # b0[k]: bias do neurônio de saída k
-        self.b0 = gera_matriz_bias(self.comprimento_saida)
+        self.b0 = gera_matriz_bias(self.comprimento_saida, ini_bias)
 
         # Salva os erros por época
         self.erros = [] # EQM de treino por época
@@ -192,7 +201,7 @@ class MLP:
                 self.logger.log_erro_validacao(epoca + 1, erro_medio, erro_val)
 
                 # Houve melhora no erro de validação?
-                if erro_val < melhor_erro_val:
+                if erro_val <= melhor_erro_val:
                     melhor_erro_val = erro_val
                     epocas_sem_melhora = 0
                 # else:

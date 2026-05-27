@@ -26,29 +26,40 @@ def ler_arquivo_csv(path_arquivo):
 # de modo a evitar os problemas de gradiente explodindo
 # Os pesos são amostrados no seguinte intervalo U[-sqrt(6 / (n_in + n_out)), sqrt(6 / (n_in + n_out))]
 
-def gera_matriz_pesos(num_entr, num_neur):
+def gera_matriz_pesos(num_entr, num_neur, ini='Xavier'):
     """
     Gera a matriz de pesos de uma camada com inicialização de Xavier (explicado acima)
 
     Recebe como parâmetros:
     1) num_entr: nº de entradas da camada (n_in)
     2) num_neur: nº de neurônios da camada (n_out)
+    3) ini: se 'Xavier', inicializa os pesos utilizando a inicialização de Xavier (explicado acima);
+            caso contrário, inicializa os pesos dentro de um intervalo [-1, 1]
 
     Retorna: Matriz NumPy de dimensões num_entr x num_neur) com pesos inicializados em um intervalo:
         U[-sqrt(6/(n_in+n_out)), sqrt(6/(n_in+n_out))]
     """
     limite = np.sqrt(6.0 / (num_entr + num_neur))
-    return np.random.uniform(-limite, limite,
+    if ini=='Xavier':
+        return np.random.uniform(-limite, limite,
                              size=(num_entr, num_neur))
+    else:
+        return np.random.uniform(-1, 1,size=(num_entr, num_neur))
 
-def gera_matriz_bias(num_neur):
+def gera_matriz_bias(num_neur, ini='zero'):
     """
     Gera o vetor de bias de uma camada, inicializado com zeros
 
     Recebe como parâmetros:
     1) num_neur: nº de neurônios da camada
+    2) ini: se 'zero', inicializa os pesos do bias igual a zero; caso contrário,
+            inicializa os pesos dentro de um intervalo [-1, 1]
 
     Retorna: Vetor NumPy de zeros com tamanho num_neur
     """
-    return np.zeros(num_neur)
+    limite = np.sqrt(6.0 / (210))
+    if ini=='zero':
+        return np.zeros(num_neur)
+    else:
+        return np.random.uniform(-1, 1,size=(num_neur))
 
