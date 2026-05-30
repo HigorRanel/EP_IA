@@ -40,7 +40,7 @@ def gera_matriz_pesos(num_entr, num_neur, ini='Xavier'):
         U[-sqrt(6/(n_in+n_out)), sqrt(6/(n_in+n_out))]
     """
     limite = np.sqrt(6.0 / (num_entr + num_neur))
-    if ini=='Xavier':
+    if ini.lower()=='xavier':
         return np.random.uniform(-limite, limite,
                              size=(num_entr, num_neur))
     else:
