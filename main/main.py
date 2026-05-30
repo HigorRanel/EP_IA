@@ -21,6 +21,91 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
+def reduzir_treino(
+        treino_x,
+        rotulos_treino,
+        colunas_letras_treino,
+        max_por_letra=5,
+        seed=42
+):
+    """
+    Mantém no máximo max_por_letra amostras de cada letra no treinamento
+    Buscamos com essa função entender como o modelo generaliza
+
+    Parâmetros:
+    1) treino_x: dataframe de treino
+    2) rotulos_treino: array one-hot correspondente
+    3) colunas_letras_treino: Series/array com a letra de cada amostra de treino
+    4) max_por_letra: maximo de amostras por letra
+    5) seed: para reprodução
+
+    Retorna: Uma tupla com 2 conjuntos reajustados:
+    treino_x_reduzido: Os dados de treino com a quantidade de exemplos limitada ao valor definido
+    rotulos_treino_reduzido: As respostas que acompanham esse grupo
+    """
+
+    rng = np.random.default_rng(seed)
+    letras = np.array(colunas_letras_treino)
+    selecionados = []
+
+    for letra in sorted(set(letras)):
+        index = np.where(letras == letra)[0]
+        rng.shuffle(index)
+
+        selecionados.extend(index[:max_por_letra])
+
+    selecionados = sorted(selecionados)
+
+    return treino_x.iloc[selecionados, :], rotulos_treino[selecionados]
+
+
+def split_nao_estratificado(
+        x,
+        rotulos,
+        colunas_letras,
+        seed=42
+):
+    """
+    Divide treino com proporção distintas para cada letra, sem estratificar.
+    Inspirado no cenário citado pela professora.
+
+    Parâmetros:
+    1) x: dataframe completo
+    2) rotulos: array one-hot completo
+    3) colunas_letras: array com a letra de cada amostra
+    4) seed: para reprodução
+
+    Retorna: uma tupla com 4 elementos
+    treino_x: Os dados separados para ensinar o modelo, 30 a 80%
+    rotulos_treino: As respostas do conjunto de treino
+    teste_x: O restante dos dados para avaliar o modelo
+    rotulos_teste: As respostas do conjunto de teste
+    """
+    rng = np.random.default_rng(seed)
+    letras = np.array(colunas_letras)
+    index_treino, index_teste = [], []
+
+    for letra in sorted(set(letras)):
+        index = np.where(
+            letras == letra)[0]
+        rng.shuffle(index)
+
+        # fração de treino sorteada por letra
+        #  varia entre 30% e 80%
+        frac_treino = rng.uniform(0.3, 0.8)
+        corte = max(1, int(
+            len(index) * frac_treino))
+        index_treino.extend(index[:corte])
+        index_teste.extend(index[corte:])
+
+    index_treino, index_teste = sorted(index_treino), sorted(index_teste)
+
+    return (
+        x.iloc[index_treino, :], rotulos[index_treino],
+        x.iloc[index_teste, :], rotulos[index_teste]
+    )
+
 def criar_dict(y_col):
     """
     A função visa criar dicionário que mapeia cada letra para seu vetor
@@ -173,8 +258,8 @@ def main():
         epocas=150,
         taxa_de_aprendizado=0.5,
         paciencia=10, # para se o erro de validação não melhorar por X épocas
-        ini_pesos='Xavier',
-        ini_bias='aleatorio'
+        ini_pesos='xavier',
+        ini_bias='zero'
     )
 
     colunas_letras = y[0]
@@ -207,6 +292,45 @@ def main():
 
     # Gera e exibe a matriz de confusão
     mlp.matriz_confusao(resultados, letras)
+
+    # Variações Autorais:
+
+    # # Variação: treino reduzido
+    # # letra de cada amostra de treino
+    # colunas_letras_treino = treino_y.iloc[:, 0]
+    # treino_x_red, rot_red = reduzir_treino(treino_x, rotulos_treino,
+    #                                        colunas_letras_treino, max_por_letra=5)
+    # mlp_a = MLP(120, 90, 26, epocas=150, taxa_de_aprendizado=0.5,
+    #             paciencia=10, ini_pesos='xavier', ini_bias='zero')
+    # mlp_a.fit(treino_x_red, rot_red, val_dados=val_x, val_rotulos=rotulos_val)
+    # res_red = mlp_a.teste(teste_x, rotulos_teste, letras, teste_y)
+    # print("\nTREINO REDUZIDO (5 por letra)")
+    # mlp_a.matriz_confusao(res_red, letras)
+
+    ###############################################################################
+
+    # # Variação: split não estratificado
+    # trx, rtr, tex, rte = split_nao_estratificado(x, rotulos, colunas_letras)
+    # tey = valor_esperado_df.iloc[tex.index, :]
+    #
+    # # separa validação de dentro do treino (sem estratificar) p/ ativar a parada antecipada
+    # rng = np.random.default_rng(42)
+    # idx = np.arange(len(trx))
+    # rng.shuffle(idx)
+    # corte = int(len(trx) * 0.2)
+    # idx_val, idx_tr = idx[:corte], idx[corte:]
+    #
+    # trx2, rtr2 = trx.iloc[idx_tr, :], rtr[idx_tr]
+    # vx, rval = trx.iloc[idx_val, :], rtr[idx_val]
+    #
+    # mlp_b = MLP(120, 90, 26, epocas=150,
+    #             taxa_de_aprendizado=0.5, paciencia=10,
+    #             ini_pesos='xavier', ini_bias='zero')
+    #
+    # mlp_b.fit(trx2, rtr2, val_dados=vx, val_rotulos=rval)
+    # res_nestrat = mlp_b.teste(tex, rte, letras, tey)
+    # print("\nSPLIT NÃO ESTRATIFICADO")
+    # mlp_b.matriz_confusao(res_nestrat, letras)
 
 
 if __name__ == '__main__':

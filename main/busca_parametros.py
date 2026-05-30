@@ -28,7 +28,7 @@ from mlp import MLP
 # Configuração de parâmetros
 
 NEURONIOS = [30, 60, 90, 120] # neurônios na camada escondida
-TAXAS = [0.1, 0.3, 0.5]  # taxa de aprendizado
+TAXAS = [0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9]  # taxa de aprendizado
 EPOCAS = 250  # máximo (parada antecipada corta antes)
 PACIENCIA = 20 # paciência da parada antecipada
 
@@ -101,7 +101,8 @@ def buscar_parametros(treino_x, rotulos_treino,
                 epocas=epocas,
                 taxa_de_aprendizado=taxa,
                 paciencia=paciencia,
-                verbose=False
+                ini_pesos='aleatorio',
+                ini_bias='aleatorio'
             )
 
             # Treina o MLP
