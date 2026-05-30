@@ -21,6 +21,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+NEURONIOS_SAIDA = 26
+
 def criar_dict(y_col):
     """
     A função visa criar dicionário que mapeia cada letra para seu vetor
@@ -39,7 +41,7 @@ def criar_dict(y_col):
 
     dict_conversao = {}
     for i in list(ordem_alfabetica):
-        lista = [0] * 26
+        lista = [0] * NEURONIOS_SAIDA
         indice = list(ordem_alfabetica).index(i)
         lista[indice] = 1
         dict_conversao[i] = lista
@@ -147,6 +149,13 @@ def holdout_estratificado(x, valor_esperado_df,
             teste_x, teste_y,
             rotulos_teste)
 
+def funde_classes(coluna_letras, fundir):
+    if not fundir:
+        return coluna_letras
+    
+    return coluna_letras.replace(fundir)
+
+
 def main():
     """
     Ponto de entrada do programa: lê os dados, monta os rótulos, faz o holdout
@@ -169,7 +178,7 @@ def main():
     mlp = MLP(
         120,
         90,
-        26,
+        NEURONIOS_SAIDA,
         epocas=150,
         taxa_de_aprendizado=0.5,
         paciencia=10, # para se o erro de validação não melhorar por X épocas
@@ -178,7 +187,12 @@ def main():
     )
 
     colunas_letras = y[0]
-    valor_esperado_df = y[[0]]
+    # o dict seguinte serve para fundir duas classes em uma
+    fundir = {}
+
+    colunas_letras = funde_classes(colunas_letras, fundir)
+
+    valor_esperado_df = colunas_letras.to_frame()
 
     letras, dict_conversao = criar_dict(colunas_letras)
 

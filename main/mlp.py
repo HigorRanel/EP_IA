@@ -461,19 +461,17 @@ class MLP:
         # w_0j(new) = w_0j(old) + Δw_0j
         self.w0 += delta_w0
 
-        self.logger.log_backprop_erros(y, t,
-                                       sum((t[k] - y[k]) for k in range(
-                                           self.comprimento_saida)))
-        self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
-        self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
-        self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
-
         # Erro instantâneo E(n) DESTA amostra, na convenção de Haykin:
         # E(n) = (1/2) * Σ_k (t_k - y_k)^2, somando sobre os m neurônios de saída.
         # O E_av = (1/N) Σ_n E(n) é obtido em fit() ao fazer a média desses valores
         # por época
-        m = self.comprimento_saida
-        erro = 0.5 * np.sum((t[:m] - y[:m]) ** 2)
+        erro = 0.5 * np.sum((t - y) ** 2)
+        
+        self.logger.log_backprop_erros(y, t, erro)
+        self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
+        self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
+        self.logger.log_atualizacao_pesos(self.B, self.b0, self.W, self.w0)
+
         return erro
 
     def matriz_confusao(self, resultados, letras):
