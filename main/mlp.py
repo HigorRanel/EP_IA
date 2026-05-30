@@ -465,9 +465,8 @@ class MLP:
         # E(n) = (1/2) * Σ_k (t_k - y_k)^2, somando sobre os m neurônios de saída.
         # O E_av = (1/N) Σ_n E(n) é obtido em fit() ao fazer a média desses valores
         # por época
-
         erro = 0.5 * np.sum((t - y) ** 2)
-
+        
         self.logger.log_backprop_erros(y, t, erro)
         self.logger.log_erro_saida(deltaMaior_k, delta_b_jk, delta_b0)
         self.logger.log_erro_oculta(deltaMaior_in_j, deltaMaior_j, delta_W, delta_w0)
