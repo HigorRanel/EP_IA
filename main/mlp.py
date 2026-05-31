@@ -189,7 +189,9 @@ class MLP:
                     epoca, self.epocas, i + 1, n_amostras, erro_medio=erro_parcial
                 )
 
-            # EQM de treino da época
+            # EQM de treino da época. Aqui, o erro médio é calculado essencialmente da mesma forma
+            # que no conjunto de validação, exceto pelo falo de que se leva em consideração a
+            # a atualização dos pesos por conta do backpropagate.
             erro_medio = sum(erros_epoca) / len(erros_epoca) if erros_epoca else 0.0
             self.erros.append(erro_medio)
 
