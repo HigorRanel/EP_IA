@@ -272,6 +272,7 @@ def main():
 
     colunas_letras = y[0]
     # o dict seguinte serve para fundir duas classes em uma
+    # Exemplo de input: {'K':'X'}
     fundir = {}
 
     colunas_letras = funde_classes(colunas_letras, fundir)

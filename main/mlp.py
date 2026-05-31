@@ -351,7 +351,7 @@ class MLP:
             #Cálculo da diferença entre o array de previsão e o esperado
             resp = rotulos[i]
             erro = np.array(self.y) - np.array(resp)
-            erro_total = sum(erro)
+            erro_total = 0.5 * np.sum(erro ** 2)
 
             self.logger.log_resultado_teste(prev, esp,
                                             saida,
@@ -369,6 +369,9 @@ class MLP:
 
         self.writer.write_saidas_teste(resultados)
         self.writer.write_acuracia(count, dados.shape[0])
+        # EQM do conjunto de teste
+        eqm_teste = self.eqm_conjunto(dados, rotulos)
+        print(f"EQM do conjunto de teste: {eqm_teste:.6f}")
         return resultados
 
     def backpropagate(self, x, t, z_in, z, y_in, y):
