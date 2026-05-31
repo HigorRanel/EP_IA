@@ -18,7 +18,7 @@ import contextlib
 from datetime import datetime
 
 import numpy as np
-from main import criar_dict, holdout_estratificado
+from main import criar_dict, holdout_estratificado, NEURONIOS_SAIDA
 from utils import ler_arquivo_csv
 
 
@@ -29,6 +29,8 @@ from mlp import MLP
 
 NEURONIOS = [30, 60, 90, 120] # neurônios na camada escondida
 TAXAS = [0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9]  # taxa de aprendizado
+INICIALIZACOES_PESOS = ['aleatorio', 'Xavier']  # regimes de inicialização dos pesos
+INICIALIZACOES_BIAS = {'aleatorio': 'aleatorio', 'Xavier': 'zero'}
 EPOCAS = 250  # máximo (parada antecipada corta antes)
 PACIENCIA = 20 # paciência da parada antecipada
 
@@ -47,16 +49,45 @@ def _silenciar_stdout():
         sys.stdout = stdout_original
 
 
+def _acuracia(mlp, dados, rotulos):
+    """
+    Calcula a acurácia da MLP sobre um conjunto (apenas feedforward), comparando o
+    argmax da saída com o argmax do rótulo one-hot. Não grava arquivos nem altera
+    pesos, então pode ser usada para medir validação e teste durante a busca.
+
+    Recebe como parâmetros:
+    1) mlp: a rede já treinada
+    2) dados: dataframe com as amostras a avaliar
+    3) rotulos: array com os vetores-alvo (one-hot) correspondentes
+
+    Retorna: a fração de amostras classificadas corretamente (0.0 se vazio)
+    """
+    n = dados.shape[0]
+    if n == 0:
+        return 0.0
+    acertos = 0
+    for i in range(n):
+        mlp.forward(dados.iloc[i])
+        if np.argmax(mlp.y) == np.argmax(rotulos[i]):
+            acertos += 1
+    return acertos / n
+
+
 def buscar_parametros(treino_x, rotulos_treino,
                       val_x, rotulos_val,
                       teste_x, rotulos_teste,
                       letras, valor_esperado_teste,
                       n_entradas, n_saidas,
                       neuronios=NEURONIOS, taxas=TAXAS,
+                      inicializacoes=INICIALIZACOES_PESOS,
                       epocas=EPOCAS, paciencia=PACIENCIA,
                       caminho_csv=None):
     """
     Executa a busca em grade e salva o CSV-resumo
+
+    A seleção da melhor combinação é feita pela acurácia de VALIDAÇÃO, nunca pela de
+    teste: o conjunto de teste é só reportado ao final, para que continue sendo uma
+    estimativa imparcial de generalização (evita vazamento de dados).
 
     Recebe como parâmetros:
     1) treino_x: dataframe com as amostras de treino
@@ -71,27 +102,32 @@ def buscar_parametros(treino_x, rotulos_treino,
     10) n_saidas: nº de neurônios da camada de saída
     11) neuronios: lista de tamanhos de camada oculta a testar
     12) taxas: lista de taxas de aprendizado a testar
-    13) epocas: nº máximo de épocas por combinação
-    14) paciencia: paciência da parada antecipada
-    15) caminho_csv: caminho do CSV de saída
+    13) inicializacoes: lista de regimes de inicialização de pesos a testar
+    14) epocas: nº máximo de épocas por combinação
+    15) paciencia: paciência da parada antecipada
+    16) caminho_csv: caminho do CSV de saída
 
     Retorna: Lista de dicionários, um por combinação testada, com os hiperparâmetros,
-    a acurácia de teste, o nº de épocas treinadas, o tempo e os erros finais
+    as acurácias de validação e teste, o nº de épocas treinadas, o tempo e os erros finais
     """
     if caminho_csv is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         caminho_csv = f"busca_parametros_{ts}.csv"
 
-    combinacoes = [(n, t) for n in neuronios for t in taxas]
+    combinacoes = [(n, t, ini)
+                   for n in neuronios
+                   for t in taxas
+                   for ini in inicializacoes]
     total = len(combinacoes)
     resultados = []
 
     print(f"\nBUSCA DE PARÂMETROS: {total} combinações "
-          f"({len(neuronios)} neurônios x {len(taxas)} taxas)")
+          f"({len(neuronios)} neurônios x {len(taxas)} taxas x {len(inicializacoes)} inits)")
     print(f"Épocas máx.: {epocas} | Paciência: {paciencia}\n")
 
-    for idx, (n_oculta, taxa) in enumerate(combinacoes, start=1):
-        print(f"[{idx:>2}/{total}] neurônios={n_oculta:>3}, taxa={taxa} ... ", end="", flush=True)
+    for idx, (n_oculta, taxa, ini_pesos) in enumerate(combinacoes, start=1):
+        print(f"[{idx:>2}/{total}] neurônios={n_oculta:>3}, taxa={taxa}, "
+              f"init={ini_pesos:>9} " f"init_bias={INICIALIZACOES_BIAS[ini_pesos]}... ", end="", flush=True)
 
         inicio = time.time()
         # Toda a saída da MLP (barra, resumo, matriz) é ocultado aqui
@@ -101,14 +137,18 @@ def buscar_parametros(treino_x, rotulos_treino,
                 epocas=epocas,
                 taxa_de_aprendizado=taxa,
                 paciencia=paciencia,
-                ini_pesos='aleatorio',
-                ini_bias='aleatorio'
+                ini_pesos=ini_pesos,
+                ini_bias=INICIALIZACOES_BIAS[ini_pesos]
             )
 
             # Treina o MLP
             mlp.fit(treino_x, rotulos_treino, val_dados=val_x, val_rotulos=rotulos_val)
 
-            # Testa o MLP
+            # Acurácia de VALIDAÇÃO: critério de SELEÇÃO dos hiperparâmetros
+            acuracia_val = _acuracia(mlp, val_x, rotulos_val)
+
+            # Testa o MLP. A acurácia de teste é apenas REPORTADA, nunca usada para
+            # escolher a combinação (evita vazamento do conjunto de teste)
             res_teste = mlp.teste(teste_x, rotulos_teste, letras, valor_esperado_teste)
 
         # Tempo de execução (tempo de treino + tempo de teste) do MLP:
@@ -128,8 +168,11 @@ def buscar_parametros(treino_x, rotulos_treino,
         linha = {
             'neuronios_ocultos': n_oculta,
             'taxa_aprendizado': taxa,
+            'ini_pesos': ini_pesos,
+            'ini_bias': INICIALIZACOES_BIAS[ini_pesos],
             'epocas_treinadas': epocas_treinadas,
             'epocas_max': epocas,
+            'acuracia_val': round(acuracia_val, 4),
             'acuracia_teste': round(acuracia, 4),
             'acertos': acertos,
             'total_teste': total_teste,
@@ -139,13 +182,14 @@ def buscar_parametros(treino_x, rotulos_treino,
         }
         resultados.append(linha)
 
-        print(f"acurácia={acuracia*100:5.2f}%  "
+        print(f"val={acuracia_val*100:5.2f}%  teste={acuracia*100:5.2f}%  "
               f"épocas={epocas_treinadas:>3}  tempo={tempo:6.1f}s")
 
     # Salva o CSV de resumo
-    colunas = ['neuronios_ocultos', 'taxa_aprendizado',
+    colunas = ['neuronios_ocultos', 'taxa_aprendizado', 'ini_pesos',
+               'ini_bias',
                'epocas_treinadas', 'epocas_max',
-               'acuracia_teste', 'acertos',
+               'acuracia_val', 'acuracia_teste', 'acertos',
                'total_teste', 'tempo_segundos',
                'eqm_treino_final', 'eqm_val_final']
     with open(caminho_csv, 'w', newline='', encoding='utf-8') as f:
@@ -154,21 +198,29 @@ def buscar_parametros(treino_x, rotulos_treino,
         for linha in resultados:
             writer.writerow(linha)
 
-    # Identifica a melhor combinação por acurácia (desempate: menor tempo)
-    melhor_acuracia = max(r['acuracia_teste'] for r in resultados)
-    candidatos = [r for r in resultados if r['acuracia_teste'] == melhor_acuracia]
+    # Identifica a melhor combinação pela acurácia de VALIDAÇÃO (desempate: menor
+    # tempo). O teste é só reportado, para não enviesar a seleção (sem vazamento)
+    melhor_acuracia_val = max(r['acuracia_val'] for r in resultados)
+    candidatos = [r for r in resultados if r['acuracia_val'] == melhor_acuracia_val]
     melhor = min(candidatos, key=lambda r: r['tempo_segundos'])
     print(f"\nBUSCA CONCLUÍDA")
     print(f"CSV salvo em: {caminho_csv}")
-    print(f"Melhor combinação: neurônios={melhor['neuronios_ocultos']}, "
-          f"taxa={melhor['taxa_aprendizado']} "
-          f"acurácia={melhor['acuracia_teste']*100:.2f}% "
+    print(f"Melhor combinação (por validação): neurônios={melhor['neuronios_ocultos']}, "
+          f"taxa={melhor['taxa_aprendizado']}, init={melhor['ini_pesos']} | "
+          f"acurácia val={melhor['acuracia_val']*100:.2f}% "
+          f"teste={melhor['acuracia_teste']*100:.2f}% "
           f"em {melhor['tempo_segundos']}s\n")
 
     return resultados
 
 if __name__ == '__main__':
-    x = ler_arquivo_csv(r'C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\X.txt'); y = ler_arquivo_csv(r"C:\Users\Higor\Documents\5 sem\IA\Ep_IA\EP_IA\Entradas\CARACTERES COMPLETO\Y_letra.txt")
+    BASE_DIR = os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))
+    ENTRADAS = os.path.join(
+        BASE_DIR, 'Entradas', 'CARACTERES COMPLETO')
+
+    x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
+    y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
     colunas_letras = y[0]; valor_esperado_df = y[[0]]
     letras, dconv = criar_dict(colunas_letras)
     rotulos = np.array([dconv[l] for l in colunas_letras])
