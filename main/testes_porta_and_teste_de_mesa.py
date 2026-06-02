@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mlp import MLP
+import loggers.writer as writer_mod
 
 
 def carregar_porta(caminho):
@@ -91,12 +92,11 @@ def main():
 
     # Os arquivos da execução (pesos, erros, gráfico) são gravados pelo Writer
     # interno da MLP. Direcionamos a pasta desta execução de teste para
-    # Saidas/execucao_teste_<anomesdia_horaminseg>.
-    import loggers.writer as writer_mod
+    # Saidas_Teste_De_Mesa/execucao_teste_<anomesdia_horaminseg>.
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    pasta_teste = os.path.join(BASE_DIR, 'Saidas', f'execucao_teste_{timestamp}')
+    pasta_teste = os.path.join(BASE_DIR, 'Saidas_Teste_De_Mesa', f'execucao_teste_{timestamp}')
 
-    def _writer_pasta_fixa(self, diretorio_saida="./Saidas"):
+    def _writer_pasta_fixa(self, diretorio_saida="./Saidas_Teste_De_Mesa"):
         self.diretorio_saida = diretorio_saida
         self.pasta_atual = pasta_teste
         os.makedirs(self.pasta_atual, exist_ok=True)
@@ -145,7 +145,7 @@ def main():
     print(f"{'real -1':>8}{matriz[0][0]:>9}{matriz[0][1]:>9}")
     print(f"{'real  1':>8}{matriz[1][0]:>9}{matriz[1][1]:>9}")
     print(f"\nArquivos da execução (pesos, erros, gráfico) salvos em "
-          f"./Saidas/execucao_teste_{timestamp}\n")
+          f"./Saidas_Teste_De_Mesa/execucao_teste_{timestamp}\n")
 
 
 if __name__ == '__main__':

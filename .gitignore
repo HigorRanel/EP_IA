@@ -16,7 +16,7 @@ ENV/
 *.swp
 .DS_Store
 
-Saidas/*
-!Saidas/.gitkeep
+../Saidas_Teste_De_Mesa/*
+!../Saidas_Teste_De_Mesa/.gitkeep
 *.log
 

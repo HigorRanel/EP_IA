@@ -1,5 +1,0 @@
-HIPERPARAMETROS DA REDE
-Arquitetura: 2 (Entrada): 2 (Oculta): 1 (Saída)
-Taxa de Aprendizado: 0.5
-Função de Ativação: sigmoid
-Épocas: 2000

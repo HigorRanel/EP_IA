@@ -16,9 +16,9 @@ from datetime import datetime
 
 
 class Writer:
-    def __init__(self, diretorio_saida="./Saidas"):
+    def __init__(self, diretorio_saida="./Saidas_Teste_De_Mesa"):
         """
-        Cria uma pasta única para a execução atual dentro de 'Saidas'
+        Cria uma pasta única para a execução atual dentro de 'Saidas_Teste_De_Mesa'
 
         Recebe como parâmetros:
         1) diretorio_saida: diretório-raiz onde a pasta da execução será criada
