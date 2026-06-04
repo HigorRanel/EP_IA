@@ -21,14 +21,14 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-NEURONIOS_SAIDA = 26
+_NEURONIOS_SAIDA = 26
+_SEED = 42
 
 def reduzir_treino(
         treino_x,
         rotulos_treino,
         colunas_letras_treino,
         max_por_letra=5,
-        seed=42
 ):
     """
     Mantém no máximo max_por_letra amostras de cada letra no treinamento
@@ -65,7 +65,6 @@ def split_nao_estratificado(
         x,
         rotulos,
         colunas_letras,
-        seed=42
 ):
     """
     Divide treino com proporção distintas para cada letra, sem estratificar.
@@ -125,7 +124,7 @@ def criar_dict(y_col):
 
     dict_conversao = {}
     for i in list(ordem_alfabetica):
-        lista = [0] * NEURONIOS_SAIDA
+        lista = [0] * _NEURONIOS_SAIDA
         indice = list(ordem_alfabetica).index(i)
         lista[indice] = 1
         dict_conversao[i] = lista
@@ -134,8 +133,7 @@ def criar_dict(y_col):
 
 def holdout_estratificado(x, valor_esperado_df,
                           rotulos, colunas_letras,
-                          test_size=0.3, val_size=0.2,
-                          seed=42):
+                          test_size=0.3, val_size=0.2):
     """
     Divide os dados em treino, validação e teste de forma estratificada por letra
 
@@ -153,7 +151,6 @@ def holdout_estratificado(x, valor_esperado_df,
     """
 
     # Seed para garantir a reprodutibilidade do experimento
-    np.random.seed(seed)
 
     total = len(x)
     n_teste_total = int(
@@ -262,7 +259,7 @@ def main():
     mlp = MLP(
         120,
         90,
-        NEURONIOS_SAIDA,
+        _NEURONIOS_SAIDA,
         epocas=150,
         taxa_de_aprendizado=0.5,
         paciencia=10, # para se o erro de validação não melhorar por X épocas
