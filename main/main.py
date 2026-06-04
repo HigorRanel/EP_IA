@@ -39,20 +39,18 @@ def reduzir_treino(
     2) rotulos_treino: array one-hot correspondente
     3) colunas_letras_treino: Series/array com a letra de cada amostra de treino
     4) max_por_letra: maximo de amostras por letra
-    5) seed: para reprodução
 
     Retorna: Uma tupla com 2 conjuntos reajustados:
     treino_x_reduzido: Os dados de treino com a quantidade de exemplos limitada ao valor definido
     rotulos_treino_reduzido: As respostas que acompanham esse grupo
     """
 
-    rng = np.random.default_rng(seed)
     letras = np.array(colunas_letras_treino)
     selecionados = []
 
     for letra in sorted(set(letras)):
         index = np.where(letras == letra)[0]
-        rng.shuffle(index)
+        np.random.shuffle(index)
 
         selecionados.extend(index[:max_por_letra])
 
@@ -74,7 +72,6 @@ def split_nao_estratificado(
     1) x: dataframe completo
     2) rotulos: array one-hot completo
     3) colunas_letras: array com a letra de cada amostra
-    4) seed: para reprodução
 
     Retorna: uma tupla com 4 elementos
     treino_x: Os dados separados para ensinar o modelo, 30 a 80%
@@ -82,18 +79,17 @@ def split_nao_estratificado(
     teste_x: O restante dos dados para avaliar o modelo
     rotulos_teste: As respostas do conjunto de teste
     """
-    rng = np.random.default_rng(seed)
     letras = np.array(colunas_letras)
     index_treino, index_teste = [], []
 
     for letra in sorted(set(letras)):
         index = np.where(
             letras == letra)[0]
-        rng.shuffle(index)
+        np.random.shuffle(index)
 
         # fração de treino sorteada por letra
         #  varia entre 30% e 80%
-        frac_treino = rng.uniform(0.3, 0.8)
+        frac_treino = np.random.uniform(0.3, 0.8)
         corte = max(1, int(
             len(index) * frac_treino))
         index_treino.extend(index[:corte])
@@ -144,7 +140,6 @@ def holdout_estratificado(x, valor_esperado_df,
     4) colunas_letras: Series com a letra de cada amostra
     5) test_size: proporção do total destinada ao teste (padrão: 0.3)
     6) val_size: proporção do treino destinada à validação (padrão: 0.2)
-    7) seed: semente aleatória para reprodutibilidade (padrão: 42)
 
     Retorna: Tupla (treino_x, treino_y, rotulos_treino, val_x, val_y, rotulos_val,
     teste_x, teste_y, rotulos_teste) com os três conjuntos já separados
@@ -215,7 +210,7 @@ def holdout_estratificado(x, valor_esperado_df,
     teste_y = valor_esperado_df.iloc[indices_teste, :]
     rotulos_teste = rotulos[indices_teste]
 
-    print(f"\nDIVISÃO HOLDOUT ESTRATIFICADO (test_size={test_size}, val_size={val_size}, seed={seed})")
+    print(f"\nDIVISÃO HOLDOUT ESTRATIFICADO (test_size={test_size}, val_size={val_size}, seed={_SEED})")
     print(f"Total: {total} amostras")
     print(f"Treino: {len(treino_x)} amostras ({round(len(treino_x)/total*100, 1)}%)")
     print(f"Validação: {len(val_x)} amostras ({round(len(val_x)/total*100, 1)}%)")
@@ -247,6 +242,10 @@ def main():
 
     Retorna: None
     """
+
+    # Semente centralizada: garante a reprodutibilidade de todo o
+    # experimento e deve ser definida antes de qualquer outra inicialização
+    np.random.seed(_SEED)
 
     BASE_DIR = os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))
@@ -288,8 +287,7 @@ def main():
      teste_x, teste_y, rotulos_teste) = holdout_estratificado(
         x, valor_esperado_df,
         rotulos, colunas_letras,
-        test_size=0.3, val_size=0.2,
-        seed=42
+        test_size=0.3, val_size=0.2
     )
 
     # Treina passando o conjunto de validação ativa a parada antecipada (Sem esse conjunto a parada
@@ -325,9 +323,8 @@ def main():
     # tey = valor_esperado_df.iloc[tex.index, :]
     #
     # # separa validação de dentro do treino (sem estratificar) p/ ativar a parada antecipada
-    # rng = np.random.default_rng(42)
     # idx = np.arange(len(trx))
-    # rng.shuffle(idx)
+    # np.random.shuffle(idx)
     # corte = int(len(trx) * 0.2)
     # idx_val, idx_tr = idx[:corte], idx[corte:]
     #
