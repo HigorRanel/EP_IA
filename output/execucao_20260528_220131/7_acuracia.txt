@@ -1,0 +1,3 @@
+ACURÁCIA DO TESTE
+Acertos:  346/390
+Acurácia: 88.72%

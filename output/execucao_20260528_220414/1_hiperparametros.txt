@@ -1,0 +1,5 @@
+HIPERPARAMETROS DA REDE
+Arquitetura: 120 (Entrada): 90 (Oculta): 26 (Saída)
+Taxa de Aprendizado: 0.5
+Função de Ativação: sigmoid
+Épocas: 150
