@@ -33,6 +33,7 @@ INICIALIZACOES_PESOS = ['aleatorio', 'Xavier']  # regimes de inicialização dos
 INICIALIZACOES_BIAS = {'aleatorio': 'aleatorio', 'Xavier': 'zero'}
 EPOCAS = 250  # máximo (parada antecipada corta antes)
 PACIENCIA = 20 # paciência da parada antecipada
+_SEED = 42  # semente única para reprodutibilidade de toda a busca
 
 
 @contextlib.contextmanager
@@ -214,6 +215,10 @@ def buscar_parametros(treino_x, rotulos_treino,
     return resultados
 
 if __name__ == '__main__':
+    # Garante a reprodutibilidade de toda a busca
+    # e deve ser definida antes de qualquer outra inicialização
+    np.random.seed(_SEED)
+
     BASE_DIR = os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))
     ENTRADAS = os.path.join(
@@ -226,7 +231,7 @@ if __name__ == '__main__':
     rotulos = np.array([dconv[l] for l in colunas_letras])
     x = x.drop(columns={120})
     (trx, try_, rtr, vx, vy, rval, tex, tey, rte) = holdout_estratificado(
-        x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, val_size=0.2, seed=42)
+        x, valor_esperado_df, rotulos, colunas_letras, test_size=0.3, val_size=0.2)
 
     buscar_parametros(trx, rtr, vx, rval, tex, rte, letras, tey,
                       n_entradas=120, n_saidas=26)
