@@ -255,17 +255,6 @@ def main():
     x = ler_arquivo_csv(os.path.join(ENTRADAS, 'X.txt'))
     y = ler_arquivo_csv(os.path.join(ENTRADAS, 'Y_letra.txt'))
 
-    mlp = MLP(
-        120,
-        90,
-        _NEURONIOS_SAIDA,
-        epocas=150,
-        taxa_de_aprendizado=0.5,
-        paciencia=10, # para se o erro de validação não melhorar por X épocas
-        ini_pesos='xavier',
-        ini_bias='zero'
-    )
-
     colunas_letras = y[0]
     # o dict seguinte serve para fundir duas classes em uma
     # Exemplo de input: {'K':'X'}
@@ -290,6 +279,23 @@ def main():
         test_size=0.3, val_size=0.2
     )
 
+    # Modelo principal. Re-semeia o RNG global imediatamente antes de construir o
+    # modelo e SEM nenhum sorteio entre a construção e o fit. Assim o init de
+    # pesos/bias e o embaralhamento por época ficam idênticos aos de qualquer
+    # variação construída do mesmo modo, garantindo uma comparação justa entre
+    # hiperparâmetros e a reprodutibilidade do experimento.
+    np.random.seed(_SEED)
+    mlp = MLP(
+        120,
+        90,
+        _NEURONIOS_SAIDA,
+        epocas=150,
+        taxa_de_aprendizado=0.5,
+        paciencia=10,  # para se o erro de validação não melhorar por X épocas
+        ini_pesos='xavier',
+        ini_bias='zero'
+    )
+
     # Treina passando o conjunto de validação ativa a parada antecipada (Sem esse conjunto a parada
     # antecipada não é ativada)
     mlp.fit(treino_x, rotulos_treino,
@@ -309,7 +315,10 @@ def main():
     # colunas_letras_treino = treino_y.iloc[:, 0]
     # treino_x_red, rot_red = reduzir_treino(treino_x, rotulos_treino,
     #                                        colunas_letras_treino, max_por_letra=5)
-    # mlp_a = MLP(120, 90, 26, epocas=150, taxa_de_aprendizado=0.5,
+    # # Re-semeia após o sorteio da redução e logo antes de construir o modelo,
+    # # para partir do mesmo init/embaralhamento do modelo principal (comparação justa)
+    # np.random.seed(_SEED)
+    # mlp_a = MLP(120, 90, _NEURONIOS_SAIDA, epocas=150, taxa_de_aprendizado=0.5,
     #             paciencia=10, ini_pesos='xavier', ini_bias='zero')
     # mlp_a.fit(treino_x_red, rot_red, val_dados=val_x, val_rotulos=rotulos_val)
     # res_red = mlp_a.teste(teste_x, rotulos_teste, letras, teste_y)
@@ -331,7 +340,10 @@ def main():
     # trx2, rtr2 = trx.iloc[idx_tr, :], rtr[idx_tr]
     # vx, rval = trx.iloc[idx_val, :], rtr[idx_val]
     #
-    # mlp_b = MLP(120, 90, 26, epocas=150,
+    # # Re-semeia após os sorteios do split e logo antes de construir o modelo,
+    # # para partir do mesmo init/embaralhamento do modelo principal (comparação justa)
+    # np.random.seed(_SEED)
+    # mlp_b = MLP(120, 90, _NEURONIOS_SAIDA, epocas=150,
     #             taxa_de_aprendizado=0.5, paciencia=10,
     #             ini_pesos='xavier', ini_bias='zero')
     #

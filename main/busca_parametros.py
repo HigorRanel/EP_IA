@@ -90,6 +90,11 @@ def buscar_parametros(treino_x, rotulos_treino,
     teste: o conjunto de teste é só reportado ao final, para que continue sendo uma
     estimativa imparcial de generalização (evita vazamento de dados).
 
+    Reprodutibilidade: o RNG global é re-semeado (np.random.seed(_SEED)) antes de
+    cada combinação, de modo que todas partam do mesmo init de pesos/bias e do mesmo
+    embaralhamento por época. Assim a comparação entre hiperparâmetros é justa e o
+    resultado é determinístico, independente da ordem da grade.
+
     Recebe como parâmetros:
     1) treino_x: dataframe com as amostras de treino
     2) rotulos_treino: array com os vetores-alvo de treino
@@ -131,6 +136,13 @@ def buscar_parametros(treino_x, rotulos_treino,
               f"init={ini_pesos:>9} " f"init_bias={INICIALIZACOES_BIAS[ini_pesos]}... ", end="", flush=True)
 
         inicio = time.time()
+        # Re-semeia o RNG global antes de CADA combinação. Como o stream do NumPy é
+        # compartilhado e sequencial, sem isso o init de pesos/bias de cada MLP
+        # dependeria de quantos números aleatórios as combinações anteriores
+        # consumiram (inclusive de quantas épocas a parada antecipada treinou).
+        # Re-semeando, toda combinação parte do MESMO init e do mesmo embaralhamento
+        # por época, tornando a comparação de hiperparâmetros justa e reprodutível.
+        np.random.seed(_SEED)
         # Toda a saída da MLP (barra, resumo, matriz) é ocultado aqui
         with _silenciar_stdout():
             mlp = MLP(
