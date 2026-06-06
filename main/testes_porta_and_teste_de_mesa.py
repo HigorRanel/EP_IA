@@ -27,15 +27,13 @@ from mlp import MLP
 import loggers.writer as writer_mod
 
 
-def carregar_porta(caminho):
-    """Lê o CSV da porta (2 atributos + rótulo bipolar, com BOM) e devolve
-    (X, alvo, rotulo_original). O alvo já vem convertido p/ 0/1 e no formato
-    (n, 1), que é o que a camada de saída de 1 neurônio espera."""
-    df = pd.read_csv(caminho, header=None, encoding='utf-8-sig')
-
-    X = df.iloc[:, :2].astype(float)
-    rotulo_original = df.iloc[:, 2].astype(int).to_numpy()
-    alvo = (rotulo_original == 1).astype(float).reshape(-1, 1)
+def carregar_porta():
+    """Define diretamente a amostra (1, 1) -> rótulo 1 (verdadeiro na AND).
+    Devolve (X, alvo, rotulo_original) no mesmo formato esperado pelo restante
+    do código."""
+    X = pd.DataFrame([[1.0, 1.0]], columns=[0, 1])
+    rotulo_original = np.array([1])
+    alvo = np.array([[1.0]])
 
     return X, alvo, rotulo_original
 
@@ -83,12 +81,9 @@ def matriz_confusao_binaria(linhas):
 
 
 def main():
-    """Carrega a AND, treina a MLP, testa por limiar e imprime a tabela, a
-    acurácia e a matriz de confusão."""
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    caminho = os.path.join(BASE_DIR, 'Entradas', 'portas logicas', 'problemAND.csv')
 
-    X, alvo, rotulo_original = carregar_porta(caminho)
+    X, alvo, rotulo_original = carregar_porta()
 
     # Os arquivos da execução (pesos, erros, gráfico) são gravados pelo Writer
     # interno da MLP. Direcionamos a pasta desta execução de teste para
@@ -111,13 +106,13 @@ def main():
         comprimento_entrada=2,
         comprimento_oculta=2,
         comprimento_saida=1,
-        epocas=2000,
+        epocas=1,
         taxa_de_aprendizado=0.5,
-        ini_pesos='xavier',
-        ini_bias='zero',
+        ini_pesos='teste_mesa',
+        ini_bias='teste_mesa',
     )
 
-    print("\nConjunto AND (todas as 4 amostras são usadas para treino e teste):")
+    print("\nConjunto AND:")
     for i in range(X.shape[0]):
         print(f"  x1={X.iat[i, 0]:>2.0f}  x2={X.iat[i, 1]:>2.0f}  "
               f"-> rótulo {int(rotulo_original[i]):>2d}  (alvo {alvo[i, 0]:.0f})")

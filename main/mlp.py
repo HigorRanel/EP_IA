@@ -100,6 +100,9 @@ class MLP:
         # b0[k]: bias do neurônio de saída k
         self.b0 = gera_matriz_bias(self.comprimento_saida, ini_bias)
 
+        if ini_pesos.lower() == 'teste_mesa':
+            self.W, self.w0, self.B, self.b0 = gera_peso_bias_teste_mesa()
+
         # Salva os erros por época
         self.erros = [] # EQM de treino por época
         self.erros_val = []  # EQM de validação por época (vazio se não houver validação)

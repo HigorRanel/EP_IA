@@ -61,4 +61,15 @@ def gera_matriz_bias(num_neur, ini='zero'):
         return np.zeros(num_neur)
     else:
         return np.random.uniform(-1, 1,size=(num_neur))
+    
+def gera_peso_bias_teste_mesa():
+    """
+    Gera a matriz dos pesos e bias igual do pdf do teste de mesa
+    """
+    W = np.array([[0.2, 0.3], [-0.2, 0.1]])
+    w0 = np.array([0.1, -0.1])
+    B = np.array([[-0.3], [0.1]])
+    b0 = np.array([0.2])
+
+    return [W, w0, B, b0]
 
