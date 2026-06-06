@@ -284,7 +284,7 @@ def main():
         120,
         60,
         _NEURONIOS_SAIDA,
-        epocas=150,
+        epocas=250,
         taxa_de_aprendizado=0.9,
         paciencia=20,  # para se o erro de validação não melhorar por X épocas
         ini_pesos='Xavier',
