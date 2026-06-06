@@ -18,7 +18,7 @@ import contextlib
 from datetime import datetime
 
 import numpy as np
-from main import criar_dict, holdout_estratificado, NEURONIOS_SAIDA
+from main import criar_dict, holdout_estratificado
 from utils import ler_arquivo_csv
 
 
@@ -136,12 +136,7 @@ def buscar_parametros(treino_x, rotulos_treino,
               f"init={ini_pesos:>9} " f"init_bias={INICIALIZACOES_BIAS[ini_pesos]}... ", end="", flush=True)
 
         inicio = time.time()
-        # Re-semeia o RNG global antes de CADA combinação. Como o stream do NumPy é
-        # compartilhado e sequencial, sem isso o init de pesos/bias de cada MLP
-        # dependeria de quantos números aleatórios as combinações anteriores
-        # consumiram (inclusive de quantas épocas a parada antecipada treinou).
-        # Re-semeando, toda combinação parte do MESMO init e do mesmo embaralhamento
-        # por época, tornando a comparação de hiperparâmetros justa e reprodutível.
+        # Re-semeia a seed para garantir reprodutibilidade e igualdade na comporação dos hiperparâmetros
         np.random.seed(_SEED)
         # Toda a saída da MLP (barra, resumo, matriz) é ocultado aqui
         with _silenciar_stdout():

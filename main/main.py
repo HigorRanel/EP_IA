@@ -243,8 +243,7 @@ def main():
     Retorna: None
     """
 
-    # Semente centralizada: garante a reprodutibilidade de todo o
-    # experimento e deve ser definida antes de qualquer outra inicialização
+    # Seed para garantir reprodutibilidade
     np.random.seed(_SEED)
 
     BASE_DIR = os.path.dirname(os.path.dirname(
@@ -279,20 +278,16 @@ def main():
         test_size=0.3, val_size=0.2
     )
 
-    # Modelo principal. Re-semeia o RNG global imediatamente antes de construir o
-    # modelo e SEM nenhum sorteio entre a construção e o fit. Assim o init de
-    # pesos/bias e o embaralhamento por época ficam idênticos aos de qualquer
-    # variação construída do mesmo modo, garantindo uma comparação justa entre
-    # hiperparâmetros e a reprodutibilidade do experimento.
+    # Re-semeia a seed para garantir reprodutibilidade e igualdade na comporação dos hiperparâmetros
     np.random.seed(_SEED)
     mlp = MLP(
         120,
-        90,
+        60,
         _NEURONIOS_SAIDA,
         epocas=150,
-        taxa_de_aprendizado=0.5,
-        paciencia=10,  # para se o erro de validação não melhorar por X épocas
-        ini_pesos='xavier',
+        taxa_de_aprendizado=0.9,
+        paciencia=20,  # para se o erro de validação não melhorar por X épocas
+        ini_pesos='Xavier',
         ini_bias='zero'
     )
 
